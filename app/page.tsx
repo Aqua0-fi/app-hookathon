@@ -19,8 +19,11 @@ import { Plus, Search, Layers } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Suspense } from 'react'
 import Loading from './loading'
+import { useWallet } from '@/contexts/wallet-context'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 export default function StrategiesPage() {
+  const { isConnected } = useWallet()
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -84,10 +87,21 @@ export default function StrategiesPage() {
               Deploy your capital across multiple chains with optimized strategies
             </p>
           </div>
-          <Button onClick={() => setIsModalOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Strategy
-          </Button>
+          {isConnected ? (
+            <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Strategy
+            </Button>
+          ) : (
+            <ConnectButton.Custom>
+              {({ openConnectModal }) => (
+                <Button onClick={openConnectModal} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Strategy
+                </Button>
+              )}
+            </ConnectButton.Custom>
+          )}
         </div>
 
         {/* Filters */}
@@ -143,10 +157,21 @@ export default function StrategiesPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Try adjusting your filters or create a new strategy
             </p>
-            <Button className="mt-4" onClick={() => setIsModalOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Strategy
-            </Button>
+            {isConnected ? (
+              <Button className="mt-4" onClick={() => setIsModalOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Strategy
+              </Button>
+            ) : (
+              <ConnectButton.Custom>
+                {({ openConnectModal }) => (
+                  <Button className="mt-4" onClick={openConnectModal}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Strategy
+                  </Button>
+                )}
+              </ConnectButton.Custom>
+            )}
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

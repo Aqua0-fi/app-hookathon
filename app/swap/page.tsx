@@ -22,6 +22,7 @@ import type { Token, Chain } from '@/lib/types'
 import { ArrowDownUp, Settings, Loader2, Clock, ArrowRight, AlertCircle, Info } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useWallet } from '@/contexts/wallet-context'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 interface SwapQuote {
   outputAmount: number
@@ -36,7 +37,7 @@ interface SwapQuote {
 }
 
 export default function SwapPage() {
-  const { isConnected, connect, isConnecting } = useWallet()
+  const { isConnected } = useWallet()
   const { toast } = useToast()
   
   // Form state
@@ -387,16 +388,15 @@ export default function SwapPage() {
             {/* Swap Button */}
             <div className="p-4">
               {!isConnected ? (
-                <Button className="w-full" size="lg" onClick={connect} disabled={isConnecting}>
-                  {isConnecting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    'Connect Wallet'
-                  )}
-                </Button>
+                <div className="w-full [&>div]:w-full [&>div>button]:w-full">
+                  <ConnectButton.Custom>
+                    {({ openConnectModal }) => (
+                      <Button className="w-full" size="lg" onClick={openConnectModal}>
+                        Connect Wallet
+                      </Button>
+                    )}
+                  </ConnectButton.Custom>
+                </div>
               ) : !isValidSwap ? (
                 <Button className="w-full" size="lg" disabled>
                   {!fromAmount || Number(fromAmount) <= 0

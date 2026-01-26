@@ -1,57 +1,69 @@
-"use client"
+'use client'
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
+import { RainbowKitProvider, ConnectButton, darkTheme } from '@rainbow-me/rainbowkit'
+import { WagmiProvider } from 'wagmi'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { config } from '@/lib/wagmi'
+import { useAccount, useDisconnect } from 'wagmi'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { createContext, useContext } from 'react'
 
-interface WalletState {
+import '@rainbow-me/rainbowkit/styles.css'
+
+const queryClient = new QueryClient()
+
+// Context type for wallet state
+interface WalletContextType {
   isConnected: boolean
   address: string | null
-  chainId: string | null
-  balance: number
-}
-
-interface WalletContextType extends WalletState {
-  connect: () => Promise<void>
+  chainId: number | undefined
+  connect: () => void
   disconnect: () => void
   isConnecting: boolean
 }
 
 const WalletContext = createContext<WalletContextType | null>(null)
 
-export function WalletProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<WalletState>({
-    isConnected: false,
-    address: null,
-    chainId: null,
-    balance: 0,
-  })
-  const [isConnecting, setIsConnecting] = useState(false)
+// Inner provider that uses wagmi hooks
+function WalletContextInner({ children }: { children: ReactNode }) {
+  const { address, isConnected, isConnecting, chainId } = useAccount()
+  const { disconnect } = useDisconnect()
+  const { openConnectModal } = useConnectModal()
 
-  const connect = useCallback(async () => {
-    setIsConnecting(true)
-    // Simulate wallet connection
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setState({
-      isConnected: true,
-      address: '0x1234...5678',
-      chainId: 'ethereum',
-      balance: 12.45,
-    })
-    setIsConnecting(false)
-  }, [])
-
-  const disconnect = useCallback(() => {
-    setState({
-      isConnected: false,
-      address: null,
-      chainId: null,
-      balance: 0,
-    })
-  }, [])
+  const value: WalletContextType = {
+    isConnected,
+    address: address ? address : null,
+    chainId,
+    connect: () => openConnectModal?.(),
+    disconnect: () => disconnect(),
+    isConnecting,
+  }
 
   return (
-    <WalletContext.Provider value={{ ...state, connect, disconnect, isConnecting }}>
+    <WalletContext.Provider value={value}>
       {children}
     </WalletContext.Provider>
+  )
+}
+
+export function WalletProvider({ children }: { children: ReactNode }) {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider
+          theme={darkTheme({
+            accentColor: '#dc2626',
+            accentColorForeground: 'white',
+            borderRadius: 'medium',
+          })}
+        >
+          <WalletContextInner>
+            {children}
+          </WalletContextInner>
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   )
 }
 
@@ -62,3 +74,6 @@ export function useWallet() {
   }
   return context
 }
+
+// Export ConnectButton for use in components
+export { ConnectButton }

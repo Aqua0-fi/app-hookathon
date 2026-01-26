@@ -16,6 +16,7 @@ import { ChainIcon } from '@/components/chain-icon'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { useWallet } from '@/contexts/wallet-context'
 import { useToast } from '@/hooks/use-toast'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
 import {
   fetchUserStats,
   fetchPositions,
@@ -56,7 +57,7 @@ import {
 } from 'recharts'
 
 export default function ProfilePage() {
-  const { isConnected, connect, isConnecting, address } = useWallet()
+  const { isConnected, address } = useWallet()
   const { toast } = useToast()
 
   const [stats, setStats] = useState<UserStats | null>(null)
@@ -157,19 +158,14 @@ export default function ProfilePage() {
             <p className="text-muted-foreground mb-6 max-w-md">
               Connect your wallet to view your positions, earnings, and transaction history.
             </p>
-            <Button onClick={connect} disabled={isConnecting} size="lg">
-              {isConnecting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
+            <ConnectButton.Custom>
+              {({ openConnectModal }) => (
+                <Button onClick={openConnectModal} size="lg">
                   <Wallet className="mr-2 h-4 w-4" />
                   Connect Wallet
-                </>
+                </Button>
               )}
-            </Button>
+            </ConnectButton.Custom>
           </div>
         </div>
       </div>

@@ -3,15 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { useWallet } from '@/contexts/wallet-context'
-import { Wallet, ChevronDown, Menu, X } from 'lucide-react'
+import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { Menu, X } from 'lucide-react'
 import { useState } from 'react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 
 const navLinks = [
   { href: '/', label: 'Strategies' },
@@ -21,7 +15,6 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname()
-  const { isConnected, address, connect, disconnect, isConnecting } = useWallet()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
@@ -54,29 +47,14 @@ export function Navbar() {
 
         {/* Wallet Connection */}
         <div className="flex items-center gap-3">
-          {isConnected ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2 bg-transparent">
-                  <div className="h-2 w-2 rounded-full bg-green-500" />
-                  <span className="hidden sm:inline">{address}</span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={disconnect}>
-                  Disconnect
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button onClick={connect} disabled={isConnecting} className="gap-2">
-              <Wallet className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-              </span>
-            </Button>
-          )}
+          <ConnectButton
+            showBalance={false}
+            chainStatus="icon"
+            accountStatus={{
+              smallScreen: 'avatar',
+              largeScreen: 'full',
+            }}
+          />
 
           {/* Mobile Menu Button */}
           <Button
