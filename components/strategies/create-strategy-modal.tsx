@@ -22,6 +22,7 @@ import { chains, tokens } from '@/lib/mock-data'
 import type { StrategyType, CreateStrategyForm, Token } from '@/lib/types'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { TokenIcon } from '@/components/token-icon'
+import { ChainIcon } from '@/components/chain-icon'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface CreateStrategyModalProps {
@@ -349,12 +350,7 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
                     }
                   }}
                 />
-                <div
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white"
-                  style={{ backgroundColor: chain.color }}
-                >
-                  {chain.name.charAt(0)}
-                </div>
+                <ChainIcon chain={chain} size="md" showTooltip={false} />
                 <span className="font-medium">{chain.name}</span>
               </label>
             ))}
