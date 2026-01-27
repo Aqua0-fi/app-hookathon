@@ -1,18 +1,18 @@
 import type { Chain, Token, Strategy, Position, Transaction, UserStats } from './types'
 
 export const chains: Chain[] = [
-  { id: 'ethereum', name: 'Ethereum', logo: 'https://coin-images.coingecko.com/coins/images/279/small/ethereum.png?1696501628', color: '#627EEA' },
-  { id: 'base', name: 'Base', logo: 'https://coin-images.coingecko.com/asset_platforms/images/131/small/base.png', color: '#0052FF' },
-  { id: 'unichain', name: 'Unichain', logo: 'https://coin-images.coingecko.com/coins/images/12504/small/uni.jpg?1696512319', color: '#FF007A' },
+  { id: 'ethereum', name: 'Ethereum', logo: '/crypto/ETH.png', color: '#627EEA' },
+  { id: 'base', name: 'Base', logo: '/crypto/Base.png', color: '#0052FF' },
+  { id: 'unichain', name: 'Unichain', logo: '/crypto/Unichain.png', color: '#FF007A' },
 ]
 
 export const tokens: Token[] = [
-  { symbol: 'ETH', name: 'Ethereum', logo: 'https://coin-images.coingecko.com/coins/images/279/small/ethereum.png?1696501628', decimals: 18, address: '0x...' },
-  { symbol: 'USDC', name: 'USD Coin', logo: 'https://coin-images.coingecko.com/coins/images/6319/small/usdc.png?1696506694', decimals: 6, address: '0x...' },
-  { symbol: 'USDT', name: 'Tether', logo: 'https://coin-images.coingecko.com/coins/images/325/small/Tether.png?1696501661', decimals: 6, address: '0x...' },
-  { symbol: 'WBTC', name: 'Wrapped Bitcoin', logo: 'https://coin-images.coingecko.com/coins/images/7598/small/WBTCLOGO.png?1764496367', decimals: 8, address: '0x...' },
-  { symbol: 'wSOL', name: 'Wrapped Solana', logo: 'https://coin-images.coingecko.com/coins/images/21629/small/solana.jpg?1696520989', decimals: 9, address: '0x...' },
-  { symbol: 'DAI', name: 'Dai', logo: 'https://coin-images.coingecko.com/coins/images/9956/small/Badge_Dai.png?1696509996', decimals: 18, address: '0x...' },
+  { symbol: 'ETH', name: 'Ethereum', logo: '/crypto/ETH.png', decimals: 18, address: '0x...' },
+  { symbol: 'USDC', name: 'USD Coin', logo: '/crypto/USDC.png', decimals: 6, address: '0x...' },
+  { symbol: 'USDT', name: 'Tether', logo: '/crypto/USDT.png', decimals: 6, address: '0x...' },
+  { symbol: 'WBTC', name: 'Wrapped Bitcoin', logo: '/crypto/BTC.png', decimals: 8, address: '0x...' },
+  { symbol: 'wSOL', name: 'Wrapped Solana', logo: '/crypto/Solana.png', decimals: 9, address: '0x...' },
+  { symbol: 'DAI', name: 'Dai', logo: '/crypto/DAI.png', decimals: 18, address: '0x...' },
 ]
 
 export const strategies: Strategy[] = [

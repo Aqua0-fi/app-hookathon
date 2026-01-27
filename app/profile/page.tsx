@@ -28,19 +28,13 @@ import {
 import type { Position, Transaction, UserStats } from '@/lib/types'
 import {
   Wallet,
-  TrendingUp,
-  Layers,
-  BarChart3,
   Plus,
   Minus,
   Eye,
-  ArrowUpRight,
-  ArrowDownLeft,
-  RefreshCw,
-  Gift,
   Loader2,
   ExternalLink,
 } from 'lucide-react'
+import Image from 'next/image'
 import {
   AreaChart,
   Area,
@@ -123,16 +117,22 @@ export default function ProfilePage() {
   }
 
   const getTransactionIcon = (type: Transaction['type']) => {
-    switch (type) {
-      case 'deposit':
-        return <ArrowDownLeft className="h-4 w-4 text-green-500" />
-      case 'withdraw':
-        return <ArrowUpRight className="h-4 w-4 text-red-500" />
-      case 'swap':
-        return <RefreshCw className="h-4 w-4 text-blue-500" />
-      case 'claim':
-        return <Gift className="h-4 w-4 text-yellow-500" />
+    const iconMap: Record<string, string> = {
+      deposit: '/icons/Deposit.png',
+      withdraw: '/icons/Withdraw.png',
+      swap: '/icons/Swap.png',
+      claim: '/icons/Gift.png',
     }
+    return (
+      <Image
+        src={iconMap[type]}
+        alt={type}
+        width={20}
+        height={20}
+        className="h-5 w-5"
+        unoptimized
+      />
+    )
   }
 
   const getStatusBadge = (status: Transaction['status']) => {
@@ -151,9 +151,7 @@ export default function ProfilePage() {
       <div className="min-h-screen">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary mb-6">
-              <Wallet className="h-8 w-8 text-muted-foreground" />
-            </div>
+            <Image src="/icons/Account.png" alt="Account" width={64} height={64} className="h-16 w-16 mb-6" unoptimized />
             <h1 className="text-2xl font-bold mb-2">Connect Your Wallet</h1>
             <p className="text-muted-foreground mb-6 max-w-md">
               Connect your wallet to view your positions, earnings, and transaction history.
@@ -196,9 +194,7 @@ export default function ProfilePage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                  <Wallet className="h-6 w-6 text-primary" />
-                </div>
+                <Image src="/icons/Account.png" alt="Total Liquidity" width={48} height={48} className="h-12 w-12" unoptimized />
                 <div>
                   <p className="text-sm text-muted-foreground">Total Liquidity</p>
                   <p className="text-2xl font-bold">{formatCurrency(stats?.totalLiquidityDeployed || 0)}</p>
@@ -210,9 +206,7 @@ export default function ProfilePage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10">
-                  <TrendingUp className="h-6 w-6 text-green-500" />
-                </div>
+                <Image src="/icons/Earnings.png" alt="Total Earnings" width={48} height={48} className="h-12 w-12" unoptimized />
                 <div>
                   <p className="text-sm text-muted-foreground">Total Earnings</p>
                   <p className="text-2xl font-bold text-green-500">+{formatCurrency(stats?.totalEarnings || 0)}</p>
@@ -224,9 +218,7 @@ export default function ProfilePage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10">
-                  <Layers className="h-6 w-6 text-blue-500" />
-                </div>
+                <Image src="/icons/Positions.png" alt="Active Positions" width={48} height={48} className="h-12 w-12" unoptimized />
                 <div>
                   <p className="text-sm text-muted-foreground">Active Positions</p>
                   <p className="text-2xl font-bold">{stats?.activePositions || 0}</p>
@@ -238,9 +230,7 @@ export default function ProfilePage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-500/10">
-                  <BarChart3 className="h-6 w-6 text-yellow-500" />
-                </div>
+                <Image src="/icons/APY.png" alt="Average APY" width={48} height={48} className="h-12 w-12" unoptimized />
                 <div>
                   <p className="text-sm text-muted-foreground">Average APY</p>
                   <p className="text-2xl font-bold text-orange-500">{stats?.averageApy.toFixed(1)}%</p>
