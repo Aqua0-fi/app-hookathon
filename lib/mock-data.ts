@@ -1,19 +1,18 @@
 import type { Chain, Token, Strategy, Position, Transaction, UserStats } from './types'
 
 export const chains: Chain[] = [
-  { id: 'ethereum', name: 'Ethereum', logo: '/chains/ethereum.svg', color: '#627EEA' },
-  { id: 'base', name: 'Base', logo: '/chains/base.svg', color: '#0052FF' },
-  { id: 'unichain', name: 'Unichain', logo: '/chains/unichain.svg', color: '#FF007A' },
+  { id: 'ethereum', name: 'Ethereum', logo: 'https://coin-images.coingecko.com/coins/images/279/small/ethereum.png?1696501628', color: '#627EEA' },
+  { id: 'base', name: 'Base', logo: 'https://coin-images.coingecko.com/asset_platforms/images/131/small/base.png', color: '#0052FF' },
+  { id: 'unichain', name: 'Unichain', logo: 'https://coin-images.coingecko.com/coins/images/12504/small/uni.jpg?1696512319', color: '#FF007A' },
 ]
 
 export const tokens: Token[] = [
-  { symbol: 'ETH', name: 'Ethereum', logo: '/tokens/eth.svg', decimals: 18, address: '0x...' },
-  { symbol: 'USDC', name: 'USD Coin', logo: '/tokens/usdc.svg', decimals: 6, address: '0x...' },
-  { symbol: 'USDT', name: 'Tether', logo: '/tokens/usdt.svg', decimals: 6, address: '0x...' },
-  { symbol: 'WBTC', name: 'Wrapped Bitcoin', logo: '/tokens/wbtc.svg', decimals: 8, address: '0x...' },
-  { symbol: 'DAI', name: 'Dai', logo: '/tokens/dai.svg', decimals: 18, address: '0x...' },
-  { symbol: 'ARB', name: 'Arbitrum', logo: '/tokens/arb.svg', decimals: 18, address: '0x...' },
-  { symbol: 'OP', name: 'Optimism', logo: '/tokens/op.svg', decimals: 18, address: '0x...' },
+  { symbol: 'ETH', name: 'Ethereum', logo: 'https://coin-images.coingecko.com/coins/images/279/small/ethereum.png?1696501628', decimals: 18, address: '0x...' },
+  { symbol: 'USDC', name: 'USD Coin', logo: 'https://coin-images.coingecko.com/coins/images/6319/small/usdc.png?1696506694', decimals: 6, address: '0x...' },
+  { symbol: 'USDT', name: 'Tether', logo: 'https://coin-images.coingecko.com/coins/images/325/small/Tether.png?1696501661', decimals: 6, address: '0x...' },
+  { symbol: 'WBTC', name: 'Wrapped Bitcoin', logo: 'https://coin-images.coingecko.com/coins/images/7598/small/WBTCLOGO.png?1764496367', decimals: 8, address: '0x...' },
+  { symbol: 'wSOL', name: 'Wrapped Solana', logo: 'https://coin-images.coingecko.com/coins/images/21629/small/solana.jpg?1696520989', decimals: 9, address: '0x...' },
+  { symbol: 'DAI', name: 'Dai', logo: 'https://coin-images.coingecko.com/coins/images/9956/small/Badge_Dai.png?1696509996', decimals: 18, address: '0x...' },
 ]
 
 export const strategies: Strategy[] = [
@@ -356,5 +355,6 @@ export const userBalances: Record<string, number> = {
   USDC: 12500,
   USDT: 8000,
   WBTC: 0.15,
+  wSOL: 25.0,
   DAI: 3500,
 }

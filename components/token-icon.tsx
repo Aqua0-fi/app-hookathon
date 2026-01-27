@@ -1,37 +1,31 @@
 import type { Token } from '@/lib/types'
+import Image from 'next/image'
 
 interface TokenIconProps {
   token: Token
   size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
-const sizeClasses = {
-  sm: 'h-5 w-5 text-[10px]',
-  md: 'h-6 w-6 text-xs',
-  lg: 'h-8 w-8 text-sm',
-  xl: 'h-10 w-10 text-base',
-}
-
-const tokenColors: Record<string, string> = {
-  ETH: '#627EEA',
-  USDC: '#2775CA',
-  USDT: '#26A17B',
-  WBTC: '#F7931A',
-  DAI: '#F5AC37',
-  ARB: '#28A0F0',
-  OP: '#FF0420',
+const sizeMap = {
+  sm: { className: 'h-5 w-5', px: 20 },
+  md: { className: 'h-6 w-6', px: 24 },
+  lg: { className: 'h-8 w-8', px: 32 },
+  xl: { className: 'h-10 w-10', px: 40 },
 }
 
 export function TokenIcon({ token, size = 'md' }: TokenIconProps) {
-  const color = tokenColors[token.symbol] || '#6B7280'
-  
+  const { className, px } = sizeMap[size]
+
   return (
-    <div
-      className={`flex items-center justify-center rounded-full font-bold text-white ${sizeClasses[size]}`}
-      style={{ backgroundColor: color }}
-      title={token.name}
-    >
-      {token.symbol.charAt(0)}
+    <div className={`relative flex-shrink-0 rounded-full overflow-hidden ${className}`} title={token.name}>
+      <Image
+        src={token.logo}
+        alt={token.name}
+        width={px}
+        height={px}
+        className="rounded-full"
+        unoptimized
+      />
     </div>
   )
 }

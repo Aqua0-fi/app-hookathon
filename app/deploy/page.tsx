@@ -94,6 +94,7 @@ const tokenPrices: Record<string, number> = {
   WBTC: 42000,
   USDC: 1,
   USDT: 1,
+  wSOL: 150,
   DAI: 1,
 }
 

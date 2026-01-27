@@ -52,6 +52,7 @@ const tokenPrices: Record<string, number> = {
   USDC: 1,
   USDT: 1,
   WBTC: 42000,
+  wSOL: 150,
   DAI: 1,
 }
 
@@ -61,6 +62,7 @@ const userBalances: Record<string, number> = {
   USDC: 12500,
   USDT: 8000,
   WBTC: 0.15,
+  wSOL: 25.0,
   DAI: 3500,
 }
 
