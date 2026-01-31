@@ -38,6 +38,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
+import { AddLiquidityModal } from '@/components/strategies/add-liquidity-modal'
+import Image from 'next/image'
 
 interface StrategyDetail {
   strategy: Strategy
@@ -92,6 +94,7 @@ export default function StrategyDetailPage() {
   const [data, setData] = useState<StrategyDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [chartMetric, setChartMetric] = useState<'apy' | 'tvl' | 'volume'>('apy')
+  const [isAddLiquidityOpen, setIsAddLiquidityOpen] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -173,7 +176,7 @@ export default function StrategyDetailPage() {
             <p className="text-sm text-muted-foreground">Current APY</p>
             <p className="text-3xl font-bold text-orange-500">{strategy.apy.toFixed(1)}%</p>
           </div>
-          <Button size="lg" className="gap-2" onClick={() => router.push(`/deploy?strategy=${strategy.id}`)}>
+          <Button size="lg" className="gap-2" onClick={() => setIsAddLiquidityOpen(true)}>
             Deploy Liquidity
             <ArrowUpRight className="h-4 w-4" />
           </Button>
@@ -228,6 +231,16 @@ export default function StrategyDetailPage() {
       {isConstantProduct && (
         <ConstantProductView data={data} chartData={chartData} chartMetric={chartMetric} setChartMetric={setChartMetric} />
       )}
+
+      {/* Add Liquidity Modal */}
+      <AddLiquidityModal
+        open={isAddLiquidityOpen}
+        onOpenChange={setIsAddLiquidityOpen}
+        strategy={strategy}
+        currentPrice={data.currentPrice}
+        minPrice={data.minPrice}
+        maxPrice={data.maxPrice}
+      />
     </div>
   )
 }
@@ -825,12 +838,22 @@ function PerformanceChart({
 // Shared Recent Activity Component
 function RecentActivityCard({ activities }: { activities: { id: string; type: string; amount: string; price: string; time: string; hash: string }[] }) {
   const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'swap': return <Activity className="h-4 w-4 text-blue-500" />
-      case 'add': return <TrendingUp className="h-4 w-4 text-green-500" />
-      case 'remove': return <TrendingUp className="h-4 w-4 rotate-180 text-red-500" />
-      default: return <Clock className="h-4 w-4 text-muted-foreground" />
+    const iconMap: Record<string, string> = {
+      swap: '/icons/Swap.png',
+      add: '/icons/Deposit.png',
+      remove: '/icons/Withdraw.png',
     }
+    const iconPath = iconMap[type] || '/icons/Swap.png'
+    return (
+      <Image
+        src={iconPath}
+        alt={type}
+        width={20}
+        height={20}
+        className="h-5 w-5"
+        unoptimized
+      />
+    )
   }
 
   return (
