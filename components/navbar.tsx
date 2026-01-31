@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Menu, X } from 'lucide-react'
 import { useState } from 'react'
+import Image from 'next/image'
 
 const navLinks = [
   { href: '/', label: 'Strategies' },
@@ -22,9 +23,14 @@ export function Navbar() {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <span className="text-sm font-bold text-primary-foreground">A0</span>
-          </div>
+          <Image
+            src="/aqua0-logo.png"
+            alt="AQUA0"
+            width={32}
+            height={32}
+            className="h-8 w-8"
+            unoptimized
+          />
           <span className="text-lg font-bold tracking-tight">AQUA0</span>
         </Link>
 
