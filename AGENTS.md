@@ -305,12 +305,102 @@ if (priceImpact > 5) {
 }
 ```
 
-## Testing Checklist
+## Testing Best Practices (Required)
+
+### Test-Driven Development (TDD)
+
+**Default to writing tests first** for any meaningful feature or bug fix:
+
+1. **Write the test** — Define expected behavior (inputs, outputs, edge cases)
+2. **Watch it fail** — Confirm the test fails for the right reason
+3. **Implement the code** — Write minimal code to make the test pass
+4. **Refactor** — Clean up while keeping tests green
+
+### When to Write Tests
+
+- **New components**: Test rendering, props, user interactions
+- **Custom hooks**: Test state changes, side effects, error handling
+- **API functions**: Test request/response handling, error cases
+- **Utilities**: Test edge cases, type coercion, validation logic
+
+### Testing Patterns
+
+```typescript
+// Component test example (React Testing Library)
+import { render, screen, fireEvent } from '@testing-library/react';
+import { StrategyCard } from '@/components/strategy-card';
+
+describe('StrategyCard', () => {
+  const mockStrategy = {
+    id: '1',
+    name: 'USDC-ETH',
+    apy: 12.5,
+    tvl: 1000000,
+  };
+
+  it('should display strategy name and APY', () => {
+    render(<StrategyCard strategy={mockStrategy} />);
+
+    expect(screen.getByText('USDC-ETH')).toBeInTheDocument();
+    expect(screen.getByText('12.5%')).toBeInTheDocument();
+  });
+
+  it('should call onSelect when clicked', () => {
+    const onSelect = jest.fn();
+    render(<StrategyCard strategy={mockStrategy} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(onSelect).toHaveBeenCalledWith('1');
+  });
+});
+```
+
+```typescript
+// Hook test example
+import { renderHook, waitFor } from "@testing-library/react";
+import { useStrategies } from "@/hooks/use-strategies";
+
+describe("useStrategies", () => {
+  it("should fetch and return strategies", async () => {
+    const { result } = renderHook(() => useStrategies());
+
+    expect(result.current.isLoading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.data).toHaveLength(3);
+  });
+
+  it("should handle errors gracefully", async () => {
+    // Mock API failure
+    const { result } = renderHook(() => useStrategies());
+
+    await waitFor(() => {
+      expect(result.current.error).toBeDefined();
+    });
+  });
+});
+```
+
+### Test Commands
+
+```bash
+bun test                 # Run all tests
+bun test --watch         # Watch mode
+bun test --coverage      # Coverage report
+bun test ComponentName   # Run specific test file
+```
+
+## Pre-Submit Checklist
 
 Before submitting changes:
 
 - [ ] `bun run lint` passes
-- [ ] `npx tsc --noEmit` passes (no type errors)
+- [ ] `bun x tsc --noEmit` passes (no type errors)
+- [ ] `bun test` passes (all tests green)
+- [ ] New features have corresponding tests
 - [ ] Page renders without errors
 - [ ] Loading states work correctly
 - [ ] Error states handled gracefully

@@ -258,12 +258,22 @@ POST /api/v1/swap/route          # Get optimal route
 GET  /api/v1/analytics/tvl       # Protocol TVL
 ```
 
-## Testing Checklist
+## Testing (TDD Required)
 
-Before committing:
+**Use test-driven development**: Write tests first, then implement.
+
+```bash
+bun test                 # Run all tests
+bun test --watch         # Watch mode
+bun test --coverage      # Coverage report
+```
+
+### Checklist Before Committing
 
 - [ ] `bun run lint` passes
-- [ ] No TypeScript errors
+- [ ] `bun x tsc --noEmit` passes (no type errors)
+- [ ] `bun test` passes
+- [ ] **Tests written first** for new features/fixes
 - [ ] All pages render correctly
 - [ ] Loading states display properly
 - [ ] Error handling works
