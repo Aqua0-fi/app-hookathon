@@ -137,15 +137,14 @@ export async function fetchSwapQuote(params: {
   return {
     outputAmount: params.amount * 0.998, // Simulated output
     priceImpact: 0.12,
-    estimatedTime: params.fromChain === params.toChain ? 30 : 180, // seconds
+    estimatedTime: 30, // seconds (single-chain)
     fees: {
-      network: 2.50,
+      network: params.fromChain === 'base' ? 0.50 : 0.30,
       protocol: params.amount * 0.001,
-      bridge: params.fromChain !== params.toChain ? 5.00 : 0,
+      bridge: 0,
     },
     route: [
       { protocol: 'Aqua0', chain: params.fromChain },
-      ...(params.fromChain !== params.toChain ? [{ protocol: 'Bridge', chain: params.toChain }] : []),
     ],
   }
 }

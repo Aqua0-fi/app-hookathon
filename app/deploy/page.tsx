@@ -150,7 +150,7 @@ function DeployPageContent() {
             tokenA: strategy.tokenPair[0],
             tokenB: strategy.tokenPair[1],
             feeTier: strategy.feeTier,
-            selectedChains: [strategy.supportedChains[0]?.id || 'ethereum'],
+            selectedChains: [strategy.supportedChains[0]?.id || 'base'],
           }))
           setStep(2)
         }
@@ -734,7 +734,7 @@ function DeployPageContent() {
           <div className="grid gap-4 md:grid-cols-3">
             {chains.map((chain) => {
               const isSelected = form.selectedChains.includes(chain.id)
-              const gasEstimate = chain.id === 'ethereum' ? 25 : chain.id === 'base' ? 0.5 : 0.3
+              const gasEstimate = chain.id === 'base' ? 0.5 : 0.3
               
               return (
                 <Card 
@@ -782,7 +782,7 @@ function DeployPageContent() {
                   <span className="text-sm text-muted-foreground">Estimated Total Gas</span>
                   <span className="font-medium">
                     ${form.selectedChains.reduce((acc, chainId) => {
-                      const gas = chainId === 'ethereum' ? 25 : chainId === 'base' ? 0.5 : 0.3
+                      const gas = chainId === 'base' ? 0.5 : 0.3
                       return acc + gas
                     }, 0).toFixed(2)}
                   </span>
@@ -1010,7 +1010,7 @@ function DeployPageContent() {
                 <span className="text-muted-foreground">Estimated Gas</span>
                 <span className="font-medium">
                   ${form.selectedChains.reduce((acc, chainId) => {
-                    const gas = chainId === 'ethereum' ? 25 : chainId === 'base' ? 0.5 : 0.3
+                    const gas = chainId === 'base' ? 0.5 : 0.3
                     return acc + gas
                   }, 0).toFixed(2)}
                 </span>
@@ -1019,7 +1019,7 @@ function DeployPageContent() {
                 <span className="font-semibold">Total Cost</span>
                 <span className="font-bold">
                   {formatCurrency(totalValueUSD + form.selectedChains.reduce((acc, chainId) => {
-                    const gas = chainId === 'ethereum' ? 25 : chainId === 'base' ? 0.5 : 0.3
+                    const gas = chainId === 'base' ? 0.5 : 0.3
                     return acc + gas
                   }, 0))}
                 </span>

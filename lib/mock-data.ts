@@ -1,7 +1,6 @@
 import type { Chain, Token, Strategy, Position, Transaction, UserStats } from './types'
 
 export const chains: Chain[] = [
-  { id: 'ethereum', name: 'Ethereum', logo: '/crypto/ETH.png', color: '#627EEA' },
   { id: 'base', name: 'Base', logo: '/crypto/Base.png', color: '#0052FF' },
   { id: 'unichain', name: 'Unichain', logo: '/crypto/Unichain.png', color: '#FF007A' },
 ]
@@ -48,7 +47,7 @@ export const strategies: Strategy[] = [
     apy: 4.5,
     tvl: 8200000,
     riskLevel: 'medium',
-    supportedChains: [chains[2]],
+    supportedChains: [chains[1]],
     feeTier: 0.3,
     createdAt: '2025-01-08',
   },
@@ -85,7 +84,7 @@ export const positions: Position[] = [
     currentValue: 25280,
     earnings: 280,
     apy: 4.5,
-    chains: [chains[2]],
+    chains: [chains[1]],
     createdAt: '2025-01-05',
   },
 ]
@@ -127,7 +126,7 @@ export const transactions: Transaction[] = [
     status: 'pending',
     amount: 10000,
     token: tokens[1],
-    chain: chains[2],
+    chain: chains[1],
     timestamp: '2025-01-21T09:00:00Z',
     hash: '0xfedc...ba98',
   },
@@ -151,8 +150,7 @@ export const earningsOverTime = [
 ]
 
 export const liquidityByChain = [
-  { chain: 'Ethereum', value: 95000, color: '#627EEA' },
-  { chain: 'Base', value: 52000, color: '#0052FF' },
+  { chain: 'Base', value: 147000, color: '#0052FF' },
   { chain: 'Unichain', value: 28000, color: '#FF007A' },
 ]
 
