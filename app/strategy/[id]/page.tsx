@@ -19,10 +19,7 @@ import {
   Clock,
   ExternalLink,
   CheckCircle2,
-  XCircle,
   Percent,
-  BarChart3,
-  Waves
 } from 'lucide-react'
 import {
   LineChart,
@@ -36,7 +33,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from 'recharts'
 import { AddLiquidityModal } from '@/components/strategies/add-liquidity-modal'
 import Image from 'next/image'
@@ -73,7 +69,6 @@ interface StrategyDetail {
 const strategyTypeLabels: Record<string, string> = {
   'constant-product': 'Constant Product',
   'stable-swap': 'Stable Swap',
-  'concentrated-liquidity': 'Concentrated Liquidity',
 }
 
 function formatCurrency(value: number): string {
@@ -127,7 +122,6 @@ export default function StrategyDetailPage() {
   }
 
   const { strategy } = data
-  const isConcentrated = strategy.type === 'concentrated-liquidity'
   const isStableSwap = strategy.type === 'stable-swap'
   const isConstantProduct = strategy.type === 'constant-product'
 
@@ -220,10 +214,6 @@ export default function StrategyDetailPage() {
       </div>
 
       {/* Main Content - Different layouts per strategy type */}
-      {isConcentrated && (
-        <ConcentratedLiquidityView data={data} chartData={chartData} chartMetric={chartMetric} setChartMetric={setChartMetric} />
-      )}
-      
       {isStableSwap && (
         <StableSwapView data={data} chartData={chartData} chartMetric={chartMetric} setChartMetric={setChartMetric} />
       )}
@@ -241,210 +231,6 @@ export default function StrategyDetailPage() {
         minPrice={data.minPrice}
         maxPrice={data.maxPrice}
       />
-    </div>
-  )
-}
-
-// Concentrated Liquidity View
-function ConcentratedLiquidityView({ 
-  data, 
-  chartData, 
-  chartMetric, 
-  setChartMetric 
-}: { 
-  data: StrategyDetail
-  chartData: { date: string; value: number }[]
-  chartMetric: 'apy' | 'tvl' | 'volume'
-  setChartMetric: (m: 'apy' | 'tvl' | 'volume') => void
-}) {
-  const { strategy } = data
-
-  return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      {/* Left Column - 2/3 width */}
-      <div className="space-y-6 lg:col-span-2">
-        {/* Price Range Card - Most important for CL */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Waves className="h-5 w-5" />
-                Price Range
-              </CardTitle>
-              {data.inRange ? (
-                <Badge className="bg-green-500/20 text-green-500">
-                  <CheckCircle2 className="mr-1 h-3 w-3" />
-                  In Range
-                </Badge>
-              ) : (
-                <Badge variant="destructive">
-                  <XCircle className="mr-1 h-3 w-3" />
-                  Out of Range
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Price Display */}
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs text-muted-foreground">Lower Price</p>
-                <p className="text-lg font-bold">{formatCurrency(data.minPrice || 0)}</p>
-                <p className="text-xs text-muted-foreground">-{data.distanceFromLower?.toFixed(1)}%</p>
-              </div>
-              <div className="rounded-lg bg-primary/10 p-3">
-                <p className="text-xs text-muted-foreground">Current Price</p>
-                <p className="text-2xl font-bold text-primary">{formatCurrency(data.currentPrice)}</p>
-                <p className="text-xs text-muted-foreground">
-                  1 {strategy.tokenPair[0].symbol} = {data.currentPrice.toLocaleString()} {strategy.tokenPair[1].symbol}
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs text-muted-foreground">Upper Price</p>
-                <p className="text-lg font-bold">{formatCurrency(data.maxPrice || 0)}</p>
-                <p className="text-xs text-muted-foreground">+{data.distanceFromUpper?.toFixed(1)}%</p>
-              </div>
-            </div>
-
-            {/* Visual Range Bar */}
-            <div className="space-y-2">
-              <div className="relative h-8 overflow-hidden rounded-full bg-muted">
-                <div 
-                  className="absolute h-full bg-primary/30"
-                  style={{ 
-                    left: '15%', 
-                    right: '15%',
-                  }}
-                />
-                <div 
-                  className="absolute top-1/2 h-10 w-1.5 -translate-y-1/2 rounded-full bg-primary shadow-lg"
-                  style={{ left: '50%', marginLeft: '-3px' }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Liquidity Distribution - Gaussian Curve */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Liquidity Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[220px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.tickDistribution || []}>
-                  <defs>
-                    <linearGradient id="liquidityGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#dc2626" stopOpacity={0.6}/>
-                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                  <XAxis 
-                    dataKey="price" 
-                    stroke="#9ca3af" 
-                    fontSize={11}
-                    tickFormatter={(v) => `$${v}`}
-                  />
-                  <YAxis 
-                    stroke="#9ca3af" 
-                    fontSize={11}
-                    tickFormatter={(v) => formatNumber(v)}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1f2937',
-                      border: '1px solid #374151',
-                      borderRadius: '8px',
-                      color: '#fff',
-                    }}
-                    formatter={(v: number) => [formatCurrency(v), 'Liquidity']}
-                    labelFormatter={(v) => `Price: $${v}`}
-                  />
-                  <ReferenceLine x={data.minPrice} stroke="#ffffff" strokeWidth={1} strokeDasharray="3 3" label={{ value: 'Lower', fill: '#ffffff', fontSize: 9, position: 'top' }} />
-                  <ReferenceLine x={data.maxPrice} stroke="#ffffff" strokeWidth={1} strokeDasharray="3 3" label={{ value: 'Upper', fill: '#ffffff', fontSize: 9, position: 'top' }} />
-                  <ReferenceLine x={data.currentPrice} stroke="#dc2626" strokeWidth={2} strokeDasharray="5 5" label={{ value: 'Current', fill: '#dc2626', fontSize: 10 }} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="liquidity" 
-                    stroke="#dc2626" 
-                    strokeWidth={2}
-                    fill="url(#liquidityGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Performance Chart */}
-        <PerformanceChart 
-          chartData={chartData} 
-          chartMetric={chartMetric} 
-          setChartMetric={setChartMetric} 
-        />
-      </div>
-
-      {/* Right Column - 1/3 width */}
-      <div className="space-y-6">
-        {/* Position Health */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Position Health</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Utilization Rate</span>
-              <span className="font-semibold">{data.utilizationRate}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full bg-primary" style={{ width: `${data.utilizationRate}%` }} />
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Liquidity Active</span>
-              <span className="font-semibold">{data.liquidityActive}%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Impermanent Loss</span>
-              <span className="font-semibold text-destructive">-{data.impermanentLoss}%</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Fee Stats */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Fee Statistics</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">24h Fees</span>
-              <span className="font-semibold">{formatCurrency(data.fees24h)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">7d Fees</span>
-              <span className="font-semibold">{formatCurrency(data.fees7d)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">30d Fees</span>
-              <span className="font-semibold">{formatCurrency(data.fees30d)}</span>
-            </div>
-            <div className="border-t pt-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total Collected</span>
-                <span className="font-bold text-primary">{formatCurrency(data.totalFeesCollected)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <RecentActivityCard activities={data.recentActivity} />
-      </div>
     </div>
   )
 }

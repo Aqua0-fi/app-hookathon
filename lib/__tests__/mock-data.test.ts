@@ -53,7 +53,7 @@ describe('mock-data', () => {
     })
 
     it('each strategy has valid type', () => {
-      const validTypes = ['constant-product', 'stable-swap', 'concentrated-liquidity']
+      const validTypes = ['constant-product', 'stable-swap']
       strategies.forEach(s => {
         expect(validTypes).toContain(s.type)
       })

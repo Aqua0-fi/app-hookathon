@@ -42,7 +42,6 @@ const steps = [
 const strategyTypes: { value: StrategyType; label: string; description: string }[] = [
   { value: 'constant-product', label: 'Constant Product', description: 'Classic x*y=k AMM curve' },
   { value: 'stable-swap', label: 'Stable Swap', description: 'Optimized for stable pairs' },
-  { value: 'concentrated-liquidity', label: 'Concentrated Liquidity', description: 'Custom price ranges' },
 ]
 
 const feeTiers = [0.01, 0.05, 0.3, 1.0]
@@ -293,38 +292,6 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
               </div>
             </div>
 
-            {form.type === 'concentrated-liquidity' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Min Price</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={form.priceRange?.min || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        priceRange: { min: Number(e.target.value), max: form.priceRange?.max || 0 },
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Max Price</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={form.priceRange?.max || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        priceRange: { min: form.priceRange?.min || 0, max: Number(e.target.value) },
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            )}
           </div>
         )}
 

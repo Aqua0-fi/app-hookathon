@@ -16,7 +16,7 @@ export interface Token {
 }
 
 // Strategy types
-export type StrategyType = 'constant-product' | 'stable-swap' | 'concentrated-liquidity'
+export type StrategyType = 'constant-product' | 'stable-swap'
 export type RiskLevel = 'low' | 'medium' | 'high'
 
 export interface Strategy {

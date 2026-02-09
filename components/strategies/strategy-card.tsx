@@ -15,7 +15,6 @@ interface StrategyCardProps {
 const strategyTypeLabels: Record<string, string> = {
   'constant-product': 'Constant Product',
   'stable-swap': 'Stable Swap',
-  'concentrated-liquidity': 'Concentrated Liquidity',
 }
 
 function formatTVL(tvl: number): string {

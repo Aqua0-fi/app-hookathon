@@ -138,7 +138,6 @@ export default function StrategiesPage() {
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="constant-product">Constant Product</SelectItem>
                 <SelectItem value="stable-swap">Stable Swap</SelectItem>
-                <SelectItem value="concentrated-liquidity">Concentrated Liquidity</SelectItem>
               </SelectContent>
             </Select>
           </div>

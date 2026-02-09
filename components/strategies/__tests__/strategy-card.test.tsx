@@ -32,7 +32,7 @@ import type { Strategy } from '@/lib/types'
 const mockStrategy: Strategy = {
   id: '1',
   name: 'ETH/USDC',
-  type: 'concentrated-liquidity',
+  type: 'constant-product',
   tokenPair: [
     { symbol: 'ETH', name: 'Ethereum', logo: '/crypto/ETH.png', decimals: 18, address: '0x...' },
     { symbol: 'USDC', name: 'USD Coin', logo: '/crypto/USDC.png', decimals: 6, address: '0x...' },
@@ -64,7 +64,7 @@ describe('StrategyCard', () => {
 
   it('renders strategy type label', () => {
     const { container } = render(<StrategyCard strategy={mockStrategy} />)
-    expect(container.textContent).toContain('Concentrated Liquidity')
+    expect(container.textContent).toContain('Constant Product')
   })
 
   it('renders chain name', () => {

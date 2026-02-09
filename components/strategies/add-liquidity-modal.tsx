@@ -12,10 +12,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Slider } from '@/components/ui/slider'
 import { TokenIcon, TokenPairIcon } from '@/components/token-icon'
 import type { Strategy } from '@/lib/types'
-import { Loader2, AlertCircle, ArrowRight } from 'lucide-react'
+import { Loader2, ArrowRight } from 'lucide-react'
 import { useWallet } from '@/contexts/wallet-context'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 
@@ -61,26 +60,12 @@ export function AddLiquidityModal({
   const [amountA, setAmountA] = useState('')
   const [amountB, setAmountB] = useState('')
 
-  // For concentrated liquidity
-  const [priceRangePercent, setPriceRangePercent] = useState(10) // ±10% default
-  const [customMinPrice, setCustomMinPrice] = useState('')
-  const [customMaxPrice, setCustomMaxPrice] = useState('')
-
   const tokenA = strategy.tokenPair[0]
   const tokenB = strategy.tokenPair[1]
-  const isConcentrated = strategy.type === 'concentrated-liquidity'
   const isStableSwap = strategy.type === 'stable-swap'
 
   // Calculate price ratio
   const priceRatio = tokenPrices[tokenA.symbol] / tokenPrices[tokenB.symbol]
-
-  // Calculate min/max price based on percentage for concentrated liquidity
-  const calculatedMinPrice = currentPrice * (1 - priceRangePercent / 100)
-  const calculatedMaxPrice = currentPrice * (1 + priceRangePercent / 100)
-
-  // Use custom prices if set, otherwise calculated
-  const minPrice = customMinPrice ? parseFloat(customMinPrice) : calculatedMinPrice
-  const maxPrice = customMaxPrice ? parseFloat(customMaxPrice) : calculatedMaxPrice
 
   // Format amount based on token type
   const formatAmount = (amount: number, symbol: string): string => {
@@ -151,9 +136,6 @@ export function AddLiquidityModal({
     if (!open) {
       setAmountA('')
       setAmountB('')
-      setPriceRangePercent(10)
-      setCustomMinPrice('')
-      setCustomMaxPrice('')
     }
   }, [open])
 
@@ -193,83 +175,6 @@ export function AddLiquidityModal({
               </p>
             </CardContent>
           </Card>
-
-          {/* Concentrated Liquidity: Price Range Selection */}
-          {isConcentrated && (
-            <div className="space-y-4">
-              <Label className="text-sm font-medium">Select Price Range</Label>
-
-              {/* Quick Range Buttons */}
-              <div className="grid grid-cols-4 gap-2">
-                {[5, 10, 20, 50].map((percent) => (
-                  <Button
-                    key={percent}
-                    type="button"
-                    variant={priceRangePercent === percent ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setPriceRangePercent(percent)
-                      setCustomMinPrice('')
-                      setCustomMaxPrice('')
-                    }}
-                  >
-                    ±{percent}%
-                  </Button>
-                ))}
-              </div>
-
-              {/* Custom Range Inputs */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs">Min Price</Label>
-                  <Input
-                    type="number"
-                    placeholder={calculatedMinPrice.toFixed(2)}
-                    value={customMinPrice}
-                    onChange={(e) => setCustomMinPrice(e.target.value)}
-                    className="font-mono"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Max Price</Label>
-                  <Input
-                    type="number"
-                    placeholder={calculatedMaxPrice.toFixed(2)}
-                    value={customMaxPrice}
-                    onChange={(e) => setCustomMaxPrice(e.target.value)}
-                    className="font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Price Range Visualization */}
-              <div className="rounded-lg bg-muted p-3">
-                <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                  <span>Min: {minPrice.toFixed(2)}</span>
-                  <span>Current: {currentPrice.toFixed(2)}</span>
-                  <span>Max: {maxPrice.toFixed(2)}</span>
-                </div>
-                <div className="relative h-2 rounded-full bg-background">
-                  <div
-                    className="absolute h-full bg-primary/50 rounded-full"
-                    style={{
-                      left: '10%',
-                      right: '10%',
-                    }}
-                  />
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full border-2 border-background"
-                    style={{ left: '50%', marginLeft: '-6px' }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <p>Narrower ranges earn more fees when price stays in range, but risk going out of range.</p>
-              </div>
-            </div>
-          )}
 
           {/* Token A Input */}
           <div className="space-y-2">
@@ -364,24 +269,6 @@ export function AddLiquidityModal({
             </Card>
           )}
 
-          {/* Summary for Concentrated Liquidity */}
-          {isConcentrated && isValid && (
-            <Card className="bg-muted/30">
-              <CardContent className="p-3 space-y-2">
-                <p className="text-sm font-medium">Position Summary</p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Price Range:</span>
-                    <span>{minPrice.toFixed(2)} - {maxPrice.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Range Width:</span>
-                    <span>±{priceRangePercent}%</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {/* Action Button */}

@@ -65,13 +65,6 @@ const strategyTypeInfo = [
     description: 'Optimized for stablecoin pairs with low slippage',
     useCases: ['USDC/USDT', 'DAI/USDC', 'Pegged assets'],
   },
-  {
-    type: 'concentrated-liquidity' as StrategyType,
-    label: 'Concentrated Liquidity',
-    formula: 'Custom ranges',
-    description: 'Capital efficient but requires active management',
-    useCases: ['High volume pairs', 'Active LP strategies', 'Experienced users'],
-  },
 ]
 
 const feeTiers = [
@@ -79,13 +72,6 @@ const feeTiers = [
   { value: 0.05, label: '0.05%', description: 'Stable pairs' },
   { value: 0.3, label: '0.3%', description: 'Standard' },
   { value: 1, label: '1%', description: 'Exotic pairs' },
-]
-
-const priceRangePresets = [
-  { label: 'Tight', percentage: 5 },
-  { label: 'Medium', percentage: 10 },
-  { label: 'Wide', percentage: 20 },
-  { label: 'Full Range', percentage: 100 },
 ]
 
 // Mock token prices in USD
@@ -123,9 +109,7 @@ function DeployPageContent() {
     ? (tokenPrices[form.tokenA.symbol] || 1) / (tokenPrices[form.tokenB.symbol] || 1)
     : 1
 
-  // Calculate total steps based on strategy type
-  const isConcentrated = form.strategyType === 'concentrated-liquidity'
-  const totalSteps = isConcentrated ? 6 : 5
+  const totalSteps = 5
 
   // Load initial data
   useEffect(() => {
@@ -228,23 +212,6 @@ function DeployPageContent() {
   }
 
   // Set price range from preset
-  const setRangeFromPreset = (percentage: number) => {
-    if (percentage === 100) {
-      setForm(prev => ({ 
-        ...prev, 
-        lowerPrice: '0',
-        upperPrice: String(currentPrice * 10)
-      }))
-    } else {
-      const delta = currentPrice * (percentage / 100)
-      setForm(prev => ({ 
-        ...prev, 
-        lowerPrice: String(Math.max(0, currentPrice - delta).toFixed(4)),
-        upperPrice: String((currentPrice + delta).toFixed(4))
-      }))
-    }
-  }
-
   // Validate current step
   const validateStep = (): boolean => {
     const errors: string[] = []
@@ -259,33 +226,10 @@ function DeployPageContent() {
         if (form.tokenA?.symbol === form.tokenB?.symbol) errors.push('Tokens must be different')
         break
       case 3:
-        if (isConcentrated) {
-          const lower = parseFloat(form.lowerPrice) || 0
-          const upper = parseFloat(form.upperPrice) || 0
-          if (lower <= 0 || upper <= 0) errors.push('Please set both lower and upper price')
-          if (lower >= upper) errors.push('Lower price must be less than upper price')
-        } else {
-          if (form.selectedChains.length === 0) errors.push('Please select at least one chain')
-        }
+        if (form.selectedChains.length === 0) errors.push('Please select at least one chain')
         break
       case 4:
-        if (isConcentrated) {
-          if (form.selectedChains.length === 0) errors.push('Please select at least one chain')
-        } else {
-          const amountA = parseFloat(form.amountA) || 0
-          const amountB = parseFloat(form.amountB) || 0
-          if (amountA <= 0) errors.push('Please enter amount for Token A')
-          if (amountB <= 0) errors.push('Please enter amount for Token B')
-          if (form.tokenA && amountA > (balances[form.tokenA.symbol] || 0)) {
-            errors.push(`Insufficient ${form.tokenA.symbol} balance`)
-          }
-          if (form.tokenB && amountB > (balances[form.tokenB.symbol] || 0)) {
-            errors.push(`Insufficient ${form.tokenB.symbol} balance`)
-          }
-        }
-        break
-      case 5:
-        if (isConcentrated) {
+        {
           const amountA = parseFloat(form.amountA) || 0
           const amountB = parseFloat(form.amountB) || 0
           if (amountA <= 0) errors.push('Please enter amount for Token A')
@@ -328,10 +272,7 @@ function DeployPageContent() {
         chains: form.selectedChains,
         amountA: parseFloat(form.amountA),
         amountB: parseFloat(form.amountB),
-        priceRange: isConcentrated ? { 
-          min: parseFloat(form.lowerPrice), 
-          max: parseFloat(form.upperPrice) 
-        } : undefined,
+        priceRange: undefined,
       })
       setDeployResult({ success: true, txHash: result.txHash })
     } catch {
@@ -349,8 +290,7 @@ function DeployPageContent() {
     return amountA * priceA + amountB * priceB
   })()
 
-  const estimatedAPY = form.strategyType === 'stable-swap' ? 8.2 : 
-    form.strategyType === 'concentrated-liquidity' ? 24.5 : 18.7
+  const estimatedAPY = form.strategyType === 'stable-swap' ? 8.2 : 18.7
 
   const estimatedDailyEarnings = (totalValueUSD * estimatedAPY / 100) / 365
 
@@ -445,7 +385,6 @@ function DeployPageContent() {
         <div className="mt-2 flex justify-between text-xs text-muted-foreground">
           <span>Type</span>
           <span>Tokens</span>
-          {isConcentrated && <span>Range</span>}
           <span>Chains</span>
           <span>Amount</span>
           <span>Review</span>
@@ -618,113 +557,8 @@ function DeployPageContent() {
         </div>
       )}
 
-      {/* Step 3A: Price Range (Concentrated only) */}
-      {step === 3 && isConcentrated && (
-        <div className="space-y-6">
-          <h2 className="text-lg font-semibold">Set Price Range</h2>
-          
-          {/* Current Price */}
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-sm text-muted-foreground">Current Price</p>
-              <p className="text-3xl font-bold">{currentPrice.toFixed(4)}</p>
-              <p className="text-sm text-muted-foreground">
-                1 {form.tokenA?.symbol} = {currentPrice.toFixed(4)} {form.tokenB?.symbol}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Preset Ranges */}
-          <div className="space-y-2">
-            <Label>Quick Presets</Label>
-            <div className="grid grid-cols-4 gap-2">
-              {priceRangePresets.map((preset) => (
-                <Button
-                  key={preset.label}
-                  variant="outline"
-                  onClick={() => setRangeFromPreset(preset.percentage)}
-                >
-                  {preset.label}
-                  {preset.percentage !== 100 && <span className="ml-1 text-xs text-muted-foreground">+/-{preset.percentage}%</span>}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Manual Range Input */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Lower Price</Label>
-              <Input
-                type="number"
-                step="0.0001"
-                placeholder="0.0000"
-                value={form.lowerPrice}
-                onChange={(e) => setForm(prev => ({ ...prev, lowerPrice: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {form.tokenB?.symbol} per {form.tokenA?.symbol}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Upper Price</Label>
-              <Input
-                type="number"
-                step="0.0001"
-                placeholder="0.0000"
-                value={form.upperPrice}
-                onChange={(e) => setForm(prev => ({ ...prev, upperPrice: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">
-                {form.tokenB?.symbol} per {form.tokenA?.symbol}
-              </p>
-            </div>
-          </div>
-
-          {/* Range Visualization */}
-          {form.lowerPrice && form.upperPrice && (
-            <Card>
-              <CardContent className="p-4">
-                <div className="mb-2 flex justify-between text-sm">
-                  <span>{parseFloat(form.lowerPrice).toFixed(4)}</span>
-                  <span className="font-medium text-primary">{currentPrice.toFixed(4)}</span>
-                  <span>{parseFloat(form.upperPrice).toFixed(4)}</span>
-                </div>
-                <div className="relative h-4 rounded-full bg-muted">
-                  <div 
-                    className="absolute h-full rounded-full bg-primary/30"
-                    style={{ 
-                      left: `${Math.max(0, Math.min(100, (parseFloat(form.lowerPrice) / (parseFloat(form.upperPrice) * 1.2)) * 100))}%`,
-                      right: `${Math.max(0, 100 - (parseFloat(form.upperPrice) / (parseFloat(form.upperPrice) * 1.2)) * 100)}%`,
-                    }}
-                  />
-                  <div 
-                    className="absolute top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-primary"
-                    style={{ left: `${(currentPrice / (parseFloat(form.upperPrice) * 1.2)) * 100}%` }}
-                  />
-                </div>
-                <p className="mt-2 text-center text-xs text-muted-foreground">
-                  Range width: {(((parseFloat(form.upperPrice) - parseFloat(form.lowerPrice)) / currentPrice) * 100).toFixed(1)}%
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Warning for tight range */}
-          {form.lowerPrice && form.upperPrice && 
-           (parseFloat(form.upperPrice) - parseFloat(form.lowerPrice)) / currentPrice < 0.1 && (
-            <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4">
-              <AlertTriangle className="mt-0.5 h-4 w-4 text-yellow-500" />
-              <p className="text-sm text-yellow-500">
-                Tight range selected. Higher risk of going out of range, but potentially higher returns when in range.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Step 3B / 4: Chain Selection */}
-      {((step === 3 && !isConcentrated) || (step === 4 && isConcentrated)) && (
+      {/* Step 3: Chain Selection */}
+      {step === 3 && (
         <div className="space-y-6">
           <h2 className="text-lg font-semibold">Select Chain</h2>
           <p className="text-sm text-muted-foreground">
@@ -793,8 +627,8 @@ function DeployPageContent() {
         </div>
       )}
 
-      {/* Step 4 / 5: Liquidity Amount */}
-      {((step === 4 && !isConcentrated) || (step === 5 && isConcentrated)) && (
+      {/* Step 4: Liquidity Amount */}
+      {step === 4 && (
         <div className="space-y-6">
           <h2 className="text-lg font-semibold">Enter Liquidity Amount</h2>
           <p className="text-sm text-muted-foreground">
@@ -933,8 +767,8 @@ function DeployPageContent() {
         </div>
       )}
 
-      {/* Step 5 / 6: Review & Confirm */}
-      {((step === 5 && !isConcentrated) || (step === 6 && isConcentrated)) && (
+      {/* Step 5: Review & Confirm */}
+      {step === 5 && (
         <div className="space-y-6">
           <h2 className="text-lg font-semibold">Review & Confirm</h2>
           
@@ -960,14 +794,6 @@ function DeployPageContent() {
                 <span className="text-muted-foreground">Fee Tier</span>
                 <span className="font-medium">{form.feeTier}%</span>
               </div>
-              {isConcentrated && (
-                <div className="flex items-center justify-between border-b pb-4">
-                  <span className="text-muted-foreground">Price Range</span>
-                  <span className="font-medium">
-                    {parseFloat(form.lowerPrice).toFixed(4)} - {parseFloat(form.upperPrice).toFixed(4)}
-                  </span>
-                </div>
-              )}
               <div className="flex items-center justify-between border-b pb-4">
                 <span className="text-muted-foreground">Chain</span>
                 <div className="flex gap-2">
@@ -1057,11 +883,6 @@ function DeployPageContent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {isConcentrated && (
-                <p className="text-sm text-yellow-500">
-                  Your position may go out of range, stopping fee earnings until rebalanced.
-                </p>
-              )}
               <p className="text-sm text-yellow-500">
                 Impermanent loss is possible with volatile token pairs.
               </p>
@@ -1085,7 +906,7 @@ function DeployPageContent() {
           Back
         </Button>
         
-        {((step === 5 && !isConcentrated) || (step === 6 && isConcentrated)) ? (
+        {step === 5 ? (
           <Button onClick={handleDeploy} disabled={isDeploying} className="min-w-[140px]">
             {isDeploying ? (
               <>
