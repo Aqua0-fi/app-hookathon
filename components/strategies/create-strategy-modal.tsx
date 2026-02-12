@@ -52,6 +52,8 @@ const strategyTypes: { value: StrategyType; label: string; description: string }
 
 const feeTiers = [0.01, 0.05, 0.3, 1.0]
 
+const STABLECOINS = new Set(['USDC', 'USDT', 'DAI'])
+
 // Mock token prices in USD
 const tokenPrices: Record<string, number> = {
   ETH: 2000,
@@ -87,19 +89,23 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
     initialLiquidity: 1000,
   })
 
+  // Filter tokens: stable-swap only shows stablecoins
+  const availableTokens = form.type === 'stable-swap'
+    ? tokens.filter(t => STABLECOINS.has(t.symbol))
+    : tokens
+
   // Get token objects from symbols
   const tokenA = tokens.find(t => t.symbol === form.tokenPair[0])
   const tokenB = tokens.find(t => t.symbol === form.tokenPair[1])
 
   // Calculate current price ratio between tokens
-  const currentPrice = tokenA && tokenB 
+  const currentPrice = tokenA && tokenB
     ? (tokenPrices[tokenA.symbol] || 1) / (tokenPrices[tokenB.symbol] || 1)
     : 1
 
   // Format amount based on token type
   const formatAmount = (amount: number, symbol: string): string => {
-    const isStable = ['USDC', 'USDT', 'DAI'].includes(symbol)
-    return isStable ? amount.toFixed(2) : amount.toFixed(6)
+    return STABLECOINS.has(symbol) ? amount.toFixed(2) : amount.toFixed(6)
   }
 
   // Handle amount A change - auto-calculate B
@@ -290,7 +296,14 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
               <button
                 key={type.value}
                 type="button"
-                onClick={() => setForm({ ...form, type: type.value })}
+                onClick={() => {
+                  const newTokenPair: [string, string] = type.value === 'stable-swap'
+                    ? ['USDC', 'DAI']
+                    : ['ETH', 'USDC']
+                  setForm({ ...form, type: type.value, tokenPair: newTokenPair })
+                  setAmountA('')
+                  setAmountB('')
+                }}
                 className={`w-full rounded-lg border p-4 text-left transition-colors ${
                   form.type === type.value
                     ? 'border-primary bg-primary/10'
@@ -318,7 +331,7 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {tokens.map((token) => (
+                    {availableTokens.map((token) => (
                       <SelectItem key={token.symbol} value={token.symbol}>
                         {token.symbol}
                       </SelectItem>
@@ -336,7 +349,7 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {tokens.map((token) => (
+                    {availableTokens.map((token) => (
                       <SelectItem key={token.symbol} value={token.symbol}>
                         {token.symbol}
                       </SelectItem>
