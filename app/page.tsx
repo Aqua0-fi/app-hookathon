@@ -192,7 +192,7 @@ export default function StrategiesPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Avg. APY</p>
-              <p className="text-2xl font-bold text-primary">
+              <p className="text-2xl font-bold text-emerald-400">
                 {(filteredStrategies.reduce((acc, s) => acc + s.apy, 0) / filteredStrategies.length).toFixed(1)}%
               </p>
             </div>

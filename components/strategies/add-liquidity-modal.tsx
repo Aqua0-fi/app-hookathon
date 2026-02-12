@@ -160,7 +160,7 @@ export function AddLiquidityModal({
                 </div>
                 <div className="text-right">
                   <span className="text-sm text-muted-foreground">APY: </span>
-                  <span className="font-semibold text-orange-500">{strategy.apy}%</span>
+                  <span className="font-semibold text-emerald-400">{strategy.apy}%</span>
                 </div>
               </div>
             </CardContent>
