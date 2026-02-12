@@ -18,9 +18,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Slider } from '@/components/ui/slider'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { chains, tokens } from '@/lib/mock-data'
 import type { StrategyType, CreateStrategyForm, Token } from '@/lib/types'
-import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Loader2, Info } from 'lucide-react'
+import { buildConstantProductProgram } from '@/lib/swapvm/constantProduct'
+import { buildStableSwapProgram } from '@/lib/swapvm/stableSwap'
+import { calculateRates } from '@/lib/swapvm/encoding'
+import { parseUnits, type Address } from 'viem'
 import { TokenIcon } from '@/components/token-icon'
 import { ChainIcon } from '@/components/chain-icon'
 import { Card, CardContent } from '@/components/ui/card'
@@ -71,6 +77,7 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [amountA, setAmountA] = useState('')
   const [amountB, setAmountB] = useState('')
+  const [aParameter, setAParameter] = useState(0.8)
   const [form, setForm] = useState<CreateStrategyForm>({
     type: 'constant-product',
     tokenPair: ['ETH', 'USDC'],
@@ -148,6 +155,73 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
   const handleSubmit = async () => {
     setIsSubmitting(true)
     try {
+      // Generate bytecode for Constant Product
+      if (form.type === 'constant-product' && tokenA && tokenB) {
+        try {
+          const program = buildConstantProductProgram(
+            tokenA.address as Address,
+            tokenB.address as Address,
+            parseUnits(amountA, tokenA.decimals),
+            parseUnits(amountB, tokenB.decimals),
+            Math.round(form.feeTier * 100), // 0.3% → 30 bps
+          )
+
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log('✅ CONSTANT PRODUCT BYTECODE GENERATED')
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log('Pair:', tokenA.symbol + '/' + tokenB.symbol)
+          console.log('Amounts:', amountA, tokenA.symbol, '/', amountB, tokenB.symbol)
+          console.log('Fee:', form.feeTier + '% (' + Math.round(form.feeTier * 100) + ' bps)')
+          console.log('Bytecode:', program)
+          console.log('Length:', (program.length - 2) / 2, 'bytes')
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        } catch (err) {
+          console.error('❌ Bytecode generation failed:', err)
+        }
+      }
+
+      // Generate bytecode for Stable Swap
+      if (form.type === 'stable-swap' && tokenA && tokenB) {
+        try {
+          const { rateLt, rateGt } = calculateRates(
+            tokenA.address as Address,
+            tokenA.decimals,
+            tokenB.address as Address,
+            tokenB.decimals,
+          )
+
+          // A parameter scaled to 1e27 (e.g. 0.8 → 0.8e27)
+          const linearWidth = BigInt(Math.round(aParameter * 1e9)) * 10n ** 18n
+
+          const program = buildStableSwapProgram({
+            token0: tokenA.address as Address,
+            token1: tokenB.address as Address,
+            balance0: parseUnits(amountA, tokenA.decimals),
+            balance1: parseUnits(amountB, tokenB.decimals),
+            linearWidth,
+            rateLt,
+            rateGt,
+            feeBps: Math.round(form.feeTier * 100), // 0.3% → 30 bps
+          })
+
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log('✅ STABLE SWAP BYTECODE GENERATED')
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+          console.log('Pair:', tokenA.symbol + '/' + tokenB.symbol)
+          console.log('Amounts:', amountA, tokenA.symbol, '/', amountB, tokenB.symbol)
+          console.log('Fee:', form.feeTier + '% (' + Math.round(form.feeTier * 100) + ' bps)')
+          console.log('A Parameter:', aParameter)
+          console.log('linearWidth:', linearWidth.toString())
+          console.log('rateLt:', rateLt.toString(), '| rateGt:', rateGt.toString())
+          console.log('Bytecode:', program)
+          console.log('Length:', (program.length - 2) / 2, 'bytes')
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        } catch (err) {
+          console.error('❌ StableSwap bytecode generation failed:', err)
+        }
+      }
+
+      // Continue with existing mock flow
       await onSubmit(form)
       onOpenChange(false)
       setCurrentStep(1)
@@ -431,6 +505,39 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
                 </CardContent>
               </Card>
             )}
+
+            {/* A Parameter — StableSwap only */}
+            {form.type === 'stable-swap' && (
+              <div className="space-y-3 rounded-lg border border-border p-4">
+                <div className="flex items-center gap-2">
+                  <Label className="font-semibold">Amplification (A)</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[260px]">
+                      <p>Controls curve flatness near the peg price.</p>
+                      <p className="mt-1">Higher A = flatter curve = less slippage for pegged assets.</p>
+                      <p className="mt-1 text-muted-foreground">0.1–0.5: volatile pairs · 0.5–0.8: soft pegs · 0.8–1.0: stablecoins</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <span className="ml-auto font-mono text-sm font-semibold text-primary">
+                    {aParameter.toFixed(1)}
+                  </span>
+                </div>
+                <Slider
+                  min={0.1}
+                  max={1.0}
+                  step={0.1}
+                  value={[aParameter]}
+                  onValueChange={([v]) => setAParameter(v)}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0.1 (volatile)</span>
+                  <span>1.0 (stable)</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -453,6 +560,12 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
               <span className="text-muted-foreground">Fee Tier</span>
               <span className="font-medium">{form.feeTier}%</span>
             </div>
+            {form.type === 'stable-swap' && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amplification (A)</span>
+                <span className="font-medium">{aParameter.toFixed(1)}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Chains</span>
               <span className="font-medium">{form.chains.length} selected</span>

@@ -6,12 +6,12 @@ export const chains: Chain[] = [
 ]
 
 export const tokens: Token[] = [
-  { symbol: 'ETH', name: 'Ethereum', logo: '/crypto/ETH.png', decimals: 18, address: '0x...' },
-  { symbol: 'USDC', name: 'USD Coin', logo: '/crypto/USDC.png', decimals: 6, address: '0x...' },
-  { symbol: 'USDT', name: 'Tether', logo: '/crypto/USDT.png', decimals: 6, address: '0x...' },
-  { symbol: 'WBTC', name: 'Wrapped Bitcoin', logo: '/crypto/BTC.png', decimals: 8, address: '0x...' },
-  { symbol: 'wSOL', name: 'Wrapped Solana', logo: '/crypto/Solana.png', decimals: 9, address: '0x...' },
-  { symbol: 'DAI', name: 'Dai', logo: '/crypto/DAI.png', decimals: 18, address: '0x...' },
+  { symbol: 'ETH', name: 'Ethereum', logo: '/crypto/ETH.png', decimals: 18, address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' },
+  { symbol: 'USDC', name: 'USD Coin', logo: '/crypto/USDC.png', decimals: 6, address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+  { symbol: 'USDT', name: 'Tether', logo: '/crypto/USDT.png', decimals: 6, address: '0xdAC17F958D2ee523a2206206994597C13D831ec7' },
+  { symbol: 'WBTC', name: 'Wrapped Bitcoin', logo: '/crypto/BTC.png', decimals: 8, address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' },
+  { symbol: 'wSOL', name: 'Wrapped Solana', logo: '/crypto/Solana.png', decimals: 9, address: '0xD31a59c85aE9D8edEFec411186ADc22f858aA5d0' },
+  { symbol: 'DAI', name: 'Dai', logo: '/crypto/DAI.png', decimals: 18, address: '0x6B175474E89094C44Da98b954EedeAC495271d0F' },
 ]
 
 export const strategies: Strategy[] = [
