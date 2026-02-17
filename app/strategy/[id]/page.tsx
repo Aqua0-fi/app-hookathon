@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TokenPairIcon } from '@/components/token-icon'
 import { LoadingSpinner } from '@/components/loading-spinner'
-import { fetchStrategyDetail } from '@/lib/api'
+import { useMappedStrategy } from '@/hooks/use-mapped-strategies'
 import type { Strategy } from '@/lib/types'
 import {
   ArrowLeft,
@@ -81,20 +81,30 @@ function formatNumber(value: number): string {
 export default function StrategyDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const [data, setData] = useState<StrategyDetail | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const strategyHash = params.id as string
+  const { data: mappedStrategy, raw: apiDetail, isLoading } = useMappedStrategy(strategyHash)
   const [chartMetric, setChartMetric] = useState<'apy' | 'tvl' | 'volume'>('apy')
   const [isAddLiquidityOpen, setIsAddLiquidityOpen] = useState(false)
 
-  useEffect(() => {
-    async function loadData() {
-      setIsLoading(true)
-      const result = await fetchStrategyDetail(params.id as string)
-      setData(result as StrategyDetail | null)
-      setIsLoading(false)
-    }
-    loadData()
-  }, [params.id])
+  // Build StrategyDetail from API data with defaults for fields not yet available
+  const data: StrategyDetail | null = mappedStrategy ? {
+    strategy: mappedStrategy,
+    volume24h: apiDetail?.volume24hUsd ?? 0,
+    volume7d: 0,
+    fees24h: 0,
+    fees7d: 0,
+    fees30d: 0,
+    totalFeesCollected: apiDetail?.stats ? parseFloat(apiDetail.stats.totalFees) / 1e18 : 0,
+    poolComposition: { tokenA: 50, tokenB: 50 },
+    tokenAAmount: 0,
+    tokenBAmount: 0,
+    currentPrice: 0,
+    apyHistory: [],
+    tvlHistory: [],
+    volumeHistory: [],
+    recentActivity: [],
+    userPosition: { hasPosition: false, value: 0, earnings: 0, share: 0 },
+  } : null
 
   if (isLoading) {
     return (

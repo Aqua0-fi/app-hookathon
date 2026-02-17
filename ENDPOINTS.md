@@ -1,131 +1,142 @@
 # Aqua0 API Endpoints — Integration Status
 
 **Backend URL:** `https://api.aqua0.xyz`
-**Auth:** Basic Auth `aqua0:gigachad` + Header `X-API-Key: Aqua0-gigachads`
+**Auth:** Basic Auth + Header `X-API-Key`
+
+---
+
+## Legend
+
+- 🟢 **Done** — Backend responds correctly + frontend hook created and tested
+- 🟡 **In Progress** — Backend responds correctly, frontend hook pending
+- 🔴 **To Do** — Not yet integrated (calldata builders, write endpoints)
 
 ---
 
 ## Health & Base
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 1 | `GET` | `/health` | ✅ Done — returns `{"status":"ok"}` |
-| 2 | `GET` | `/ready` | ⚠️ Returns 503 — Supabase/Ponder/Redis not connected to backend |
-| 3 | `GET` | `/api/v1/chains` | ✅ Done — returns Base + Unichain. Testnet chains (Base Sepolia, Unichain Sepolia) not yet added |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 1 | `GET` | `/health` | 🟢 Done | `{"status":"ok"}` — hook: `useHealth()` |
+| 2 | `GET` | `/ready` | 🟡 In Progress | Supabase ✅, Ponder ✅, Redis ❌ (not configured) |
+| 3 | `GET` | `/api/v1/chains` | 🟢 Done | Returns Base + Unichain — hook: `useChains()` |
 
 ## Tokens
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 4 | `GET` | `/api/v1/tokens` | 🔌 Frontend hook created (`useTokens`). Returns 500 — needs Supabase/Ponder running |
-| 5 | `GET` | `/api/v1/tokens/stablecoins` | 🔌 Frontend hook created (`useStablecoins`). Returns 500 — needs DB |
-| 6 | `GET` | `/api/v1/tokens/:address` | 🟡 Ready to start |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 4 | `GET` | `/api/v1/tokens` | 🟢 Done | 8 tokens (4 Base, 4 Arbitrum) — hook: `useTokens()` |
+| 5 | `GET` | `/api/v1/tokens?stablecoin=true` | 🟢 Done | Filters stablecoins — hook: `useStablecoins()` |
+| 6 | `GET` | `/api/v1/tokens/:address` | 🟡 In Progress | Backend returns 404 for valid addresses — may need `?chain=` param |
 
 ## Strategies
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 7 | `GET` | `/api/v1/strategies` | 🟡 Ready to start — needs DB |
-| 8 | `GET` | `/api/v1/strategies/featured` | 🟡 Ready to start — needs DB |
-| 9 | `GET` | `/api/v1/strategies/:hash` | 🟡 Ready to start — needs DB |
-| 10 | `GET` | `/api/v1/strategies/:hash/stats` | 🟡 Ready to start — needs DB |
-| 11 | `POST` | `/api/v1/strategies/build` | ✅ Done — generates SwapVM bytecode. ⚠️ Opcodes mismatch: frontend opcodes are off by +1 vs backend. Need to confirm which swap-vm version backend uses |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 7 | `GET` | `/api/v1/strategies` | 🟢 Done | Hook: `useStrategies()` → mapped via `useMappedStrategies()` → `app/page.tsx` |
+| 8 | `GET` | `/api/v1/strategies/featured` | 🟢 Done | Hook: `useFeaturedStrategies()` → mapped via `useMappedFeaturedStrategies()` |
+| 9 | `GET` | `/api/v1/strategies/:hash` | 🟢 Done | Hook: `useStrategy(hash)` → mapped via `useMappedStrategy()` → `strategy/[id]/page.tsx` |
+| 10 | `GET` | `/api/v1/strategies/:hash/stats` | 🟢 Done | Hook: `useStrategyStats(hash)` → `strategy/[id]/page.tsx` |
+| 11 | `POST` | `/api/v1/strategies/build` | 🟢 Done | Generates SwapVM bytecode. ⚠️ Opcodes off by +1 vs frontend |
 
 ## LP Accounts
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 12 | `POST` | `/api/v1/lp/accounts/prepare-create` | 🟡 Ready to start |
-| 13 | `GET` | `/api/v1/lp/accounts/:address` | 🟡 Ready to start — needs DB |
-| 14 | `GET` | `/api/v1/lp/accounts/:address/balance/:token` | 🟡 Ready to start — needs RPC |
-| 15 | `POST` | `/api/v1/lp/accounts/:address/prepare-approve` | 🟡 Ready to start |
-| 16 | `POST` | `/api/v1/lp/accounts/:address/prepare-ship` | 🟡 Ready to start |
-| 17 | `POST` | `/api/v1/lp/accounts/:address/prepare-dock` | 🟡 Ready to start |
-| 18 | `POST` | `/api/v1/lp/accounts/:address/prepare-withdraw` | 🟡 Ready to start |
-| 19 | `POST` | `/api/v1/lp/accounts/:address/prepare-withdraw-eth` | 🟡 Ready to start |
-| 20 | `POST` | `/api/v1/lp/accounts/:address/prepare-authorize-rebalancer` | 🟡 Ready to start |
-| 21 | `POST` | `/api/v1/lp/accounts/:address/prepare-revoke-rebalancer` | 🟡 Ready to start |
-| 22 | `POST` | `/api/v1/lp/accounts/:address/prepare-set-stargate-adapter` | 🟡 Ready to start |
-| 23 | `POST` | `/api/v1/lp/accounts/:address/prepare-set-composer` | 🟡 Ready to start |
-| 24 | `GET` | `/api/v1/lp/accounts/:address/strategies/:hash` | 🟡 Ready to start — needs DB |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 12 | `POST` | `/api/v1/lp/accounts/prepare-create` | 🔴 To Do | Calldata builder — no DB needed |
+| 13 | `GET` | `/api/v1/lp/accounts/:address` | 🟡 In Progress | Returns 500 — RPC call, may need valid LP account address |
+| 14 | `GET` | `/api/v1/lp/accounts/:address/balance/:token` | 🟡 In Progress | Returns 500 — RPC call, needs valid LP account |
+| 15 | `POST` | `/api/v1/lp/accounts/:address/prepare-approve` | 🔴 To Do | Calldata builder — no DB needed |
+| 16 | `POST` | `/api/v1/lp/accounts/:address/prepare-ship` | 🔴 To Do | Calldata builder — no DB needed |
+| 17 | `POST` | `/api/v1/lp/accounts/:address/prepare-dock` | 🔴 To Do | Calldata builder — no DB needed |
+| 18 | `POST` | `/api/v1/lp/accounts/:address/prepare-withdraw` | 🔴 To Do | Calldata builder — no DB needed |
+| 19 | `POST` | `/api/v1/lp/accounts/:address/prepare-withdraw-eth` | 🔴 To Do | Calldata builder — no DB needed |
+| 20 | `POST` | `/api/v1/lp/accounts/:address/prepare-authorize-rebalancer` | 🔴 To Do | Calldata builder — no DB needed |
+| 21 | `POST` | `/api/v1/lp/accounts/:address/prepare-revoke-rebalancer` | 🔴 To Do | Calldata builder — no DB needed |
+| 22 | `POST` | `/api/v1/lp/accounts/:address/prepare-set-stargate-adapter` | 🔴 To Do | Calldata builder — no DB needed |
+| 23 | `POST` | `/api/v1/lp/accounts/:address/prepare-set-composer` | 🔴 To Do | Calldata builder — no DB needed |
+| 24 | `GET` | `/api/v1/lp/accounts/:address/strategies/:hash` | 🟡 In Progress | Returns 500 — RPC call, needs valid LP account |
 
 ## Positions
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 25 | `GET` | `/api/v1/positions/:wallet` | 🟡 Ready to start — needs DB |
-| 26 | `GET` | `/api/v1/positions/:wallet/summary` | 🟡 Ready to start — needs DB |
-| 27 | `GET` | `/api/v1/positions/:wallet/history` | 🟡 Ready to start — needs DB |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 25 | `GET` | `/api/v1/positions/:wallet` | 🟢 Done | Hook: `usePositions(wallet)` → mapped via `useMappedPositions()` → `profile/page.tsx` |
+| 26 | `GET` | `/api/v1/positions/:wallet/summary` | 🟢 Done | Hook: `usePositionSummary(wallet)` → mapped via `useMappedUserStats()` → `profile/page.tsx` |
+| 27 | `GET` | `/api/v1/positions/:wallet/history` | 🟢 Done | Hook: `usePositionHistory(wallet)` |
 
 ## Swaps
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 28 | `POST` | `/api/v1/swaps/quote` | 🟡 Ready to start |
-| 29 | `POST` | `/api/v1/swaps/prepare` | 🟡 Ready to start |
-| 30 | `GET` | `/api/v1/swaps/history/:wallet` | 🟡 Ready to start — needs DB |
-| 31 | `GET` | `/api/v1/swaps/recent` | 🟡 Ready to start — needs DB |
-| 32 | `GET` | `/api/v1/swaps/:id` | 🟡 Ready to start — needs DB |
-| 33 | `GET` | `/api/v1/swaps/by-strategy/:hash` | 🟡 Ready to start — needs DB |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 28 | `POST` | `/api/v1/swaps/quote` | 🔴 To Do | RPC call to SwapVMRouter — no DB needed |
+| 29 | `POST` | `/api/v1/swaps/prepare` | 🔴 To Do | Calldata builder — no DB needed |
+| 30 | `GET` | `/api/v1/swaps/history/:wallet` | 🟢 Done | Hook: `useSwapHistory(wallet)` → mapped via `useMappedTransactions()` → `profile/page.tsx` |
+| 31 | `GET` | `/api/v1/swaps/recent` | 🟢 Done | Hook: `useRecentSwaps()` |
+| 32 | `GET` | `/api/v1/swaps/:id` | 🟡 In Progress | Needs real swap ID to test |
+| 33 | `GET` | `/api/v1/swaps/by-strategy/:hash` | 🟡 In Progress | Needs real strategy hash to test |
 
 ## Metrics
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 34 | `GET` | `/api/v1/metrics` | 🟡 Ready to start — needs DB |
-| 35 | `GET` | `/api/v1/metrics/tvl` | 🟡 Ready to start — needs DB |
-| 36 | `GET` | `/api/v1/metrics/volume` | 🟡 Ready to start — needs DB |
-| 37 | `GET` | `/api/v1/metrics/fees` | 🟡 Ready to start — needs DB |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 34 | `GET` | `/api/v1/metrics` | 🟢 Done | Hook: `useMetrics()` |
+| 35 | `GET` | `/api/v1/metrics/tvl` | 🟢 Done | Hook: `useTvl()` |
+| 36 | `GET` | `/api/v1/metrics/volume` | 🟢 Done | Hook: `useVolume()` |
+| 37 | `GET` | `/api/v1/metrics/fees` | 🟢 Done | Hook: `useFees()` |
 
 ## Users
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 38 | `GET` | `/api/v1/users/:wallet` | 🟡 Ready to start — needs DB |
-| 39 | `POST` | `/api/v1/users` | 🟡 Ready to start — needs DB |
-| 40 | `GET` | `/api/v1/users/:wallet/preferences` | 🟡 Ready to start — needs DB |
-| 41 | `PUT` | `/api/v1/users/:wallet/preferences` | 🟡 Ready to start — needs DB |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 38 | `GET` | `/api/v1/users/:wallet` | 🟢 Done | Hook: `useUser(wallet)` — 404 for unknown wallets is correct |
+| 39 | `POST` | `/api/v1/users` | 🔴 To Do | Creates user — write endpoint, deferred |
+| 40 | `GET` | `/api/v1/users/:wallet/preferences` | 🟢 Done | Hook: `useUserPreferences(wallet)` — 404 for unknown is correct |
+| 41 | `PUT` | `/api/v1/users/:wallet/preferences` | 🔴 To Do | Updates preferences — write endpoint, deferred |
 
 ## Rebalancer
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 42 | `GET` | `/api/v1/rebalancer/:wallet` | 🟡 Ready to start — needs DB |
-| 43 | `PUT` | `/api/v1/rebalancer/:lpAccount` | 🟡 Ready to start — needs DB |
-| 44 | `GET` | `/api/v1/rebalancer/:lpAccount/operations` | 🟡 Ready to start — needs DB |
-| 45 | `GET` | `/api/v1/rebalancer/:lpAccount/pending` | 🟡 Ready to start — needs DB |
-| 46 | `POST` | `/api/v1/rebalancer/operations/prepare-trigger` | 🟡 Ready to start |
-| 47 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-dock` | 🟡 Ready to start |
-| 48 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-bridge` | 🟡 Ready to start |
-| 49 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-record-bridging` | 🟡 Ready to start |
-| 50 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-confirm` | 🟡 Ready to start |
-| 51 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-fail` | 🟡 Ready to start |
-| 52 | `GET` | `/api/v1/rebalancer/operations/:id` | 🟡 Ready to start — needs DB |
-| 53 | `POST` | `/api/v1/rebalancer/bridge/quote-fee` | 🟡 Ready to start |
-| 54 | `POST` | `/api/v1/rebalancer/bridge/quote-compose-fee` | 🟡 Ready to start |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 42 | `GET` | `/api/v1/rebalancer/:wallet` | 🟢 Done | Hook: `useRebalancerConfig(wallet)` |
+| 43 | `PUT` | `/api/v1/rebalancer/:lpAccount` | 🔴 To Do | Updates config — write endpoint, deferred |
+| 44 | `GET` | `/api/v1/rebalancer/:lpAccount/operations` | 🟢 Done | Hook: `useRebalancerOperations(lpAccount)` |
+| 45 | `GET` | `/api/v1/rebalancer/:lpAccount/pending` | 🟢 Done | Hook: `usePendingRebalances(lpAccount)` |
+| 46 | `POST` | `/api/v1/rebalancer/operations/prepare-trigger` | 🔴 To Do | Calldata builder — no DB needed |
+| 47 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-dock` | 🔴 To Do | Calldata builder — no DB needed |
+| 48 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-bridge` | 🔴 To Do | Calldata builder — no DB needed |
+| 49 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-record-bridging` | 🔴 To Do | Calldata builder — no DB needed |
+| 50 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-confirm` | 🔴 To Do | Calldata builder — no DB needed |
+| 51 | `POST` | `/api/v1/rebalancer/operations/:id/prepare-fail` | 🔴 To Do | Calldata builder — no DB needed |
+| 52 | `GET` | `/api/v1/rebalancer/operations/:id` | 🟡 In Progress | Returns 500 — needs valid operation ID |
+| 53 | `POST` | `/api/v1/rebalancer/bridge/quote-fee` | 🔴 To Do | RPC call — no DB needed |
+| 54 | `POST` | `/api/v1/rebalancer/bridge/quote-compose-fee` | 🔴 To Do | RPC call — no DB needed |
 
 ## Admin
 
-| # | Method | Endpoint | Status |
-|---|--------|----------|--------|
-| 55 | `GET` | `/api/v1/admin/strategies` | 🟡 Ready to start — needs DB |
-| 56 | `POST` | `/api/v1/admin/strategies` | 🟡 Ready to start — needs DB |
-| 57 | `PUT` | `/api/v1/admin/strategies/:hash` | 🟡 Ready to start — needs DB |
-| 58 | `DELETE` | `/api/v1/admin/strategies/:hash` | 🟡 Ready to start — needs DB |
+| # | Method | Endpoint | Status | Notes |
+|---|--------|----------|--------|-------|
+| 55 | `GET` | `/api/v1/admin/strategies` | 🟡 In Progress | Returns strategy list from `strategy_metadata` — works |
+| 56 | `POST` | `/api/v1/admin/strategies` | 🔴 To Do | Creates strategy metadata — needs testing |
+| 57 | `PUT` | `/api/v1/admin/strategies/:hash` | 🔴 To Do | Updates strategy metadata — needs testing |
+| 58 | `DELETE` | `/api/v1/admin/strategies/:hash` | 🔴 To Do | Deletes strategy metadata — needs testing |
 
 ---
 
-## Blockers
+## Summary
+
+| Status | Count |
+|--------|-------|
+| 🟢 Done | 23 |
+| 🟡 In Progress | 9 |
+| 🔴 To Do | 26 |
+
+## Remaining Blockers
 
 | Issue | Details | Who |
 |-------|---------|-----|
-| **DB not connected** | `/ready` returns 503. Backend needs `DATABASE_URL` configured in Railway env vars. All endpoints marked "needs DB" are blocked by this. | Backend |
+| **Redis not configured** | `/ready` shows Redis unhealthy. Need Redis service in Railway or skip (only caching). | Backend |
 | **SwapVM opcodes mismatch** | Frontend opcodes (DynamicBalances=0x12, FlatFee=0x26, XYCSwap=0x16) are off by +1 vs backend (0x13, 0x27, 0x17). Need to confirm correct values. | Backend |
 | **Testnet chains missing** | Backend only returns Base (8453) + Unichain (130). Need Base Sepolia (84532) + Unichain Sepolia (1301) for testnet dev. | Backend |
-
-## Legend
-
-- ✅ Done — integrated and tested
-- 🔌 Frontend hook created — waiting for backend/DB to be ready
-- ⚠️ Partially working — has known issues
-- 🟡 Ready to start — not yet integrated
+| **Token prices null** | All tokens have `priceUsd: null`. Need price feed integration (Coingecko, etc). | Backend |
+| **LP Account RPC errors** | `GET /lp/accounts/:address` and `/balance/:token` return 500 — likely needs valid on-chain LP account address. | Frontend |

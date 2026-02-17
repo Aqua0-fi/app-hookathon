@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,9 +12,10 @@ import {
 } from '@/components/ui/select'
 import { StrategyCard, StrategyCardSkeleton } from '@/components/strategies/strategy-card'
 import { CreateStrategyModal } from '@/components/strategies/create-strategy-modal'
-import { fetchStrategies, createStrategy } from '@/lib/api'
-import type { Strategy, CreateStrategyForm, StrategyType } from '@/lib/types'
-import { chains } from '@/lib/mock-data'
+import { createStrategy } from '@/lib/api'
+import type { CreateStrategyForm, StrategyType } from '@/lib/types'
+import { useMappedStrategies } from '@/hooks/use-mapped-strategies'
+import { useChains } from '@/hooks/use-chains'
 import { Plus, Search, Layers } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Suspense } from 'react'
@@ -24,38 +25,17 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 export default function StrategiesPage() {
   const { isConnected } = useWallet()
-  const [strategies, setStrategies] = useState<Strategy[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { data: strategies, isLoading } = useMappedStrategies()
+  const { data: apiChains } = useChains()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [chainFilter, setChainFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<StrategyType | 'all'>('all')
   const { toast } = useToast()
 
-  useEffect(() => {
-    loadStrategies()
-  }, [])
-
-  async function loadStrategies() {
-    setIsLoading(true)
-    try {
-      const data = await fetchStrategies()
-      setStrategies(data)
-    } catch {
-      toast({
-        title: 'Error',
-        description: 'Failed to load strategies',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   async function handleCreateStrategy(form: CreateStrategyForm) {
     try {
-      const newStrategy = await createStrategy(form)
-      setStrategies([newStrategy, ...strategies])
+      await createStrategy(form)
       toast({
         title: 'Strategy Created',
         description: 'Your strategy has been created successfully',
@@ -69,7 +49,7 @@ export default function StrategiesPage() {
     }
   }
 
-  const filteredStrategies = strategies.filter((strategy) => {
+  const filteredStrategies = (strategies ?? []).filter((strategy) => {
     const matchesSearch = strategy.name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesChain = chainFilter === 'all' || strategy.supportedChains.some(c => c.id === chainFilter)
     const matchesType = typeFilter === 'all' || strategy.type === typeFilter
@@ -123,9 +103,9 @@ export default function StrategiesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Chains</SelectItem>
-                {chains.map((chain) => (
-                  <SelectItem key={chain.id} value={chain.id}>
-                    {chain.name}
+                {(apiChains ?? []).map((chain) => (
+                  <SelectItem key={chain.id} value={chain.name}>
+                    {chain.displayName}
                   </SelectItem>
                 ))}
               </SelectContent>
