@@ -21,7 +21,6 @@ import type { Token, Chain } from '@/lib/types'
 import { ArrowDownUp, Settings, Loader2, Clock, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useWallet } from '@/contexts/wallet-context'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useBalance, useSwitchChain } from 'wagmi'
 import { base, baseSepolia } from 'wagmi/chains'
 import type { Address } from 'viem'
@@ -56,7 +55,7 @@ interface SwapQuote {
 }
 
 export default function SwapPage() {
-  const { isConnected, chainId, address } = useWallet()
+  const { isConnected, chainId, address, connect } = useWallet()
   const { toast } = useToast()
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain()
 
@@ -435,15 +434,9 @@ export default function SwapPage() {
             {/* Swap Button */}
             <div className="p-4">
               {!isConnected ? (
-                <div className="w-full [&>div]:w-full [&>div>button]:w-full">
-                  <ConnectButton.Custom>
-                    {({ openConnectModal }) => (
-                      <Button className="w-full" size="lg" onClick={openConnectModal}>
-                        Connect Wallet
-                      </Button>
-                    )}
-                  </ConnectButton.Custom>
-                </div>
+                <Button className="w-full" size="lg" onClick={connect}>
+                  Log in
+                </Button>
               ) : needsChainSwitch ? (
                 <Button
                   className="w-full"

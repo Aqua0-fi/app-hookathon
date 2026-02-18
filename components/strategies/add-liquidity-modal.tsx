@@ -16,7 +16,6 @@ import { TokenIcon, TokenPairIcon } from '@/components/token-icon'
 import type { Strategy } from '@/lib/types'
 import { Loader2, ArrowRight } from 'lucide-react'
 import { useWallet } from '@/contexts/wallet-context'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 interface AddLiquidityModalProps {
   open: boolean
@@ -55,7 +54,7 @@ export function AddLiquidityModal({
   minPrice: defaultMinPrice,
   maxPrice: defaultMaxPrice,
 }: AddLiquidityModalProps) {
-  const { isConnected } = useWallet()
+  const { isConnected, connect } = useWallet()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [amountA, setAmountA] = useState('')
   const [amountB, setAmountB] = useState('')
@@ -274,13 +273,9 @@ export function AddLiquidityModal({
         {/* Action Button */}
         <div className="mt-4 flex-shrink-0">
           {!isConnected ? (
-            <ConnectButton.Custom>
-              {({ openConnectModal }) => (
-                <Button className="w-full" size="lg" onClick={openConnectModal}>
-                  Connect Wallet
-                </Button>
-              )}
-            </ConnectButton.Custom>
+            <Button className="w-full" size="lg" onClick={connect}>
+              Log in
+            </Button>
           ) : (
             <Button
               className="w-full"

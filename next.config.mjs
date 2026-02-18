@@ -12,15 +12,16 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    /**
-     * Turbopack struggles with some test/bench files inside `thread-stream`
-     * (pulled in via `pino`). Mark these heavy logging dependencies as
-     * external for server components so Turbopack doesn't try to bundle
-     * their internals (tests, README, zips, etc.).
-     */
-    serverComponentsExternalPackages: ["pino", "thread-stream"],
-  },
+  /**
+   * `pino` and `thread-stream` (pulled in via WalletConnect → Privy)
+   * ship test files that reference dev-only modules. Keep them external
+   * so the server-component bundler doesn't try to resolve those files.
+   *
+   * The main fix for the Client Component SSR path is the context split:
+   * `wallet-context.tsx` (pure React, safe for SSR) vs
+   * `wallet-provider.tsx` (Privy-heavy, loaded client-only via dynamic()).
+   */
+  serverExternalPackages: ["pino", "thread-stream"],
 };
 
 export default nextConfig;

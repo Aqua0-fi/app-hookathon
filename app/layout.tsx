@@ -2,10 +2,8 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Space_Grotesk } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { WalletProvider } from "@/contexts/wallet-context"
-import { Navbar } from "@/components/navbar"
-import { Footer } from "@/components/footer"
 import { Toaster } from "@/components/ui/toaster"
+import { ClientProviders } from "@/components/client-providers"
 import "./globals.css"
 
 const spaceGrotesk = Space_Grotesk({
@@ -31,14 +29,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} font-sans antialiased`}>
-        <WalletProvider>
+        <ClientProviders>
           <div className="flex min-h-screen flex-col">
-            <Navbar />
             <main className="flex-1">{children}</main>
-            <Footer />
           </div>
           <Toaster />
-        </WalletProvider>
+        </ClientProviders>
         <Analytics />
       </body>
     </html>

@@ -3,16 +3,23 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { Menu, X, ChevronDown, Wallet } from 'lucide-react'
+import { useWallet } from '@/contexts/wallet-context'
+import { Menu, X, ChevronDown, Wallet, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import Image from 'next/image'
+import { useAccount, useSwitchChain } from 'wagmi'
 
 // Map chain IDs to our local icons
 const chainIcons: Record<number, string> = {
   8453: '/crypto/Base.png',       // Base mainnet
   84532: '/crypto/Base.png',      // Base Sepolia
   1301: '/crypto/Unichain.png',   // Unichain Sepolia
+}
+
+const chainNames: Record<number, string> = {
+  8453: 'Base',
+  84532: 'Base Sepolia',
+  1301: 'Unichain Sepolia',
 }
 
 function truncateAddress(address: string): string {
@@ -28,6 +35,10 @@ const navLinks = [
 export function Navbar() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { isConnected, address, connect, disconnect, chainId } = useWallet()
+  const { chains } = useSwitchChain()
+  const [chainDropdownOpen, setChainDropdownOpen] = useState(false)
+  const { switchChain } = useSwitchChain()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-sm">
@@ -64,78 +75,74 @@ export function Navbar() {
 
         {/* Wallet Connection */}
         <div className="flex items-center gap-3">
-          <ConnectButton.Custom>
-            {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
-              const ready = mounted
-              const connected = ready && account && chain
-
-              return (
-                <div
-                  {...(!ready && {
-                    'aria-hidden': true,
-                    style: { opacity: 0, pointerEvents: 'none', userSelect: 'none' },
-                  })}
+          {!isConnected ? (
+            <Button onClick={connect} size="sm">
+              <Wallet className="mr-2 h-4 w-4" />
+              Log in
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              {/* Chain selector */}
+              <div className="relative">
+                <button
+                  onClick={() => setChainDropdownOpen(!chainDropdownOpen)}
+                  className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-sm font-medium transition-colors hover:bg-secondary"
                 >
-                  {(() => {
-                    if (!connected) {
-                      return (
-                        <Button onClick={openConnectModal} size="sm">
-                          <Wallet className="mr-2 h-4 w-4" />
-                          Connect
-                        </Button>
-                      )
-                    }
+                  {chainId && chainIcons[chainId] ? (
+                    <Image
+                      src={chainIcons[chainId]}
+                      alt={chainNames[chainId] ?? 'Chain'}
+                      width={18}
+                      height={18}
+                      className="rounded-full"
+                      unoptimized
+                    />
+                  ) : null}
+                  <span className="hidden sm:inline">{chainId ? chainNames[chainId] ?? `Chain ${chainId}` : 'Unknown'}</span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </button>
 
-                    if (chain.unsupported) {
-                      return (
-                        <Button onClick={openChainModal} variant="destructive" size="sm">
-                          Wrong network
-                        </Button>
-                      )
-                    }
+                {/* Chain dropdown */}
+                {chainDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-background p-1 shadow-lg">
+                    {chains.map((chain) => (
+                      <button
+                        key={chain.id}
+                        onClick={() => {
+                          switchChain({ chainId: chain.id })
+                          setChainDropdownOpen(false)
+                        }}
+                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary ${
+                          chainId === chain.id ? 'bg-secondary/50 font-medium' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {chainIcons[chain.id] && (
+                          <Image
+                            src={chainIcons[chain.id]}
+                            alt={chain.name}
+                            width={16}
+                            height={16}
+                            className="rounded-full"
+                            unoptimized
+                          />
+                        )}
+                        {chain.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                    return (
-                      <div className="flex items-center gap-2">
-                        {/* Chain selector */}
-                        <button
-                          onClick={openChainModal}
-                          className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-sm font-medium transition-colors hover:bg-secondary"
-                        >
-                          {chainIcons[chain.id] ? (
-                            <Image
-                              src={chainIcons[chain.id]}
-                              alt={chain.name ?? 'Chain'}
-                              width={18}
-                              height={18}
-                              className="rounded-full"
-                              unoptimized
-                            />
-                          ) : chain.iconUrl ? (
-                            <img
-                              alt={chain.name ?? 'Chain'}
-                              src={chain.iconUrl}
-                              className="h-[18px] w-[18px] rounded-full"
-                            />
-                          ) : null}
-                          <span className="hidden sm:inline">{chain.name}</span>
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                        </button>
-
-                        {/* Account */}
-                        <button
-                          onClick={openAccountModal}
-                          className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-secondary"
-                        >
-                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                          {truncateAddress(account.address)}
-                        </button>
-                      </div>
-                    )
-                  })()}
-                </div>
-              )
-            }}
-          </ConnectButton.Custom>
+              {/* Account */}
+              <button
+                onClick={disconnect}
+                className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-secondary"
+              >
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {address ? truncateAddress(address) : '...'}
+              </button>
+            </div>
+          )}
 
           {/* Mobile Menu Button */}
           <Button

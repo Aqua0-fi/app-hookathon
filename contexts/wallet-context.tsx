@@ -1,71 +1,32 @@
 'use client'
 
-import { type ReactNode } from 'react'
-import { RainbowKitProvider, ConnectButton, darkTheme } from '@rainbow-me/rainbowkit'
-import { WagmiProvider } from 'wagmi'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { config } from '@/lib/wagmi'
-import { useAccount, useDisconnect } from 'wagmi'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { createContext, useContext } from 'react'
 
-import '@rainbow-me/rainbowkit/styles.css'
+/**
+ * Wallet context — pure React, zero heavy dependencies.
+ *
+ * This file deliberately does NOT import Privy, wagmi, or anything that
+ * drags in WalletConnect/pino.  That keeps `useWallet()` safe to import
+ * from any Client Component without bloating the SSR bundle.
+ *
+ * The actual provider that populates these values lives in
+ * `contexts/wallet-provider.tsx` and is loaded client-only via
+ * `next/dynamic` in `components/client-providers.tsx`.
+ */
 
-const queryClient = new QueryClient()
-
-// Context type for wallet state
-interface WalletContextType {
+export interface WalletContextType {
   isConnected: boolean
   address: string | null
   chainId: number | undefined
   connect: () => void
   disconnect: () => void
   isConnecting: boolean
+  // Privy extras
+  email: string | null
+  isAuthenticated: boolean
 }
 
-const WalletContext = createContext<WalletContextType | null>(null)
-
-// Inner provider that uses wagmi hooks
-function WalletContextInner({ children }: { children: ReactNode }) {
-  const { address, isConnected, isConnecting, chainId } = useAccount()
-  const { disconnect } = useDisconnect()
-  const { openConnectModal } = useConnectModal()
-
-  const value: WalletContextType = {
-    isConnected,
-    address: address ? address : null,
-    chainId,
-    connect: () => openConnectModal?.(),
-    disconnect: () => disconnect(),
-    isConnecting,
-  }
-
-  return (
-    <WalletContext.Provider value={value}>
-      {children}
-    </WalletContext.Provider>
-  )
-}
-
-export function WalletProvider({ children }: { children: ReactNode }) {
-  return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider
-          theme={darkTheme({
-            accentColor: '#dc2626',
-            accentColorForeground: 'white',
-            borderRadius: 'medium',
-          })}
-        >
-          <WalletContextInner>
-            {children}
-          </WalletContextInner>
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
-  )
-}
+export const WalletContext = createContext<WalletContextType | null>(null)
 
 export function useWallet() {
   const context = useContext(WalletContext)
@@ -74,6 +35,3 @@ export function useWallet() {
   }
   return context
 }
-
-// Export ConnectButton for use in components
-export { ConnectButton }

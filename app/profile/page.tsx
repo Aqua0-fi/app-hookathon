@@ -14,7 +14,6 @@ import {
 import { ChainIcon } from '@/components/chain-icon'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { useWallet } from '@/contexts/wallet-context'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useMappedPositions, useMappedUserStats, useMappedTransactions } from '@/hooks/use-mapped-positions'
 import type { Transaction } from '@/lib/types'
 import {
@@ -28,7 +27,7 @@ import {
 import Image from 'next/image'
 
 export default function ProfilePage() {
-  const { isConnected, address } = useWallet()
+  const { isConnected, address, connect } = useWallet()
 
   const { data: positions, isLoading: positionsLoading } = useMappedPositions(address)
   const { data: stats, isLoading: statsLoading } = useMappedUserStats(address)
@@ -94,14 +93,10 @@ export default function ProfilePage() {
             <p className="text-muted-foreground mb-6 max-w-md">
               Connect your wallet to view your positions, earnings, and transaction history.
             </p>
-            <ConnectButton.Custom>
-              {({ openConnectModal }) => (
-                <Button onClick={openConnectModal} size="lg">
-                  <Wallet className="mr-2 h-4 w-4" />
-                  Connect Wallet
-                </Button>
-              )}
-            </ConnectButton.Custom>
+            <Button onClick={connect} size="lg">
+              <Wallet className="mr-2 h-4 w-4" />
+              Log in
+            </Button>
           </div>
         </div>
       </div>

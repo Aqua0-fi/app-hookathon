@@ -21,10 +21,9 @@ import { useToast } from '@/hooks/use-toast'
 import { Suspense } from 'react'
 import Loading from './loading'
 import { useWallet } from '@/contexts/wallet-context'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 export default function StrategiesPage() {
-  const { isConnected } = useWallet()
+  const { isConnected, connect } = useWallet()
   const { data: strategies, isLoading } = useMappedStrategies()
   const { data: apiChains } = useChains()
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -73,14 +72,10 @@ export default function StrategiesPage() {
               Create Strategy
             </Button>
           ) : (
-            <ConnectButton.Custom>
-              {({ openConnectModal }) => (
-                <Button onClick={openConnectModal} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Create Strategy
-                </Button>
-              )}
-            </ConnectButton.Custom>
+            <Button onClick={connect} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Create Strategy
+            </Button>
           )}
         </div>
 
@@ -142,14 +137,10 @@ export default function StrategiesPage() {
                 Create Strategy
               </Button>
             ) : (
-              <ConnectButton.Custom>
-                {({ openConnectModal }) => (
-                  <Button className="mt-4" onClick={openConnectModal}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Strategy
-                  </Button>
-                )}
-              </ConnectButton.Custom>
+              <Button className="mt-4" onClick={connect}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Strategy
+              </Button>
             )}
           </div>
         ) : (

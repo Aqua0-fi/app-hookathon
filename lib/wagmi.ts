@@ -1,12 +1,13 @@
-'use client'
-
-import { getDefaultConfig } from '@rainbow-me/rainbowkit'
+import { http } from 'wagmi'
 import { baseSepolia, base } from 'wagmi/chains'
 import { unichainSepolia } from 'viem/chains'
+import { createConfig } from '@privy-io/wagmi'
 
-export const config = getDefaultConfig({
-  appName: 'AQUA0',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
-  chains: [baseSepolia, base, unichainSepolia],
-  ssr: true,
+export const config = createConfig({
+  chains: [base, baseSepolia, unichainSepolia],
+  transports: {
+    [base.id]: http(),
+    [baseSepolia.id]: http(),
+    [unichainSepolia.id]: http(),
+  },
 })
