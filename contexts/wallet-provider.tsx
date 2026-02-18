@@ -2,6 +2,7 @@
 
 import { type ReactNode } from 'react'
 import { PrivyProvider, usePrivy, useLogin, useLogout } from '@privy-io/react-auth'
+import { SmartWalletsProvider } from '@privy-io/react-auth/smart-wallets'
 import { WagmiProvider } from '@privy-io/wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAccount } from 'wagmi'
@@ -66,9 +67,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     >
       <QueryClientProvider client={queryClient}>
         <WagmiProvider config={config}>
-          <WalletContextInner>
-            {children}
-          </WalletContextInner>
+          <SmartWalletsProvider>
+            <WalletContextInner>
+              {children}
+            </WalletContextInner>
+          </SmartWalletsProvider>
         </WagmiProvider>
       </QueryClientProvider>
     </PrivyProvider>

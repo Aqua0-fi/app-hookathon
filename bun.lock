@@ -47,6 +47,7 @@
         "lucide-react": "^0.454.0",
         "next": "16.0.10",
         "next-themes": "^0.4.6",
+        "permissionless": "^0.3.4",
         "react": "19.2.0",
         "react-day-picker": "9.8.0",
         "react-dom": "19.2.0",
@@ -1403,6 +1404,8 @@
     "path-exists": ["path-exists@4.0.0", "", {}, "sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w=="],
 
     "pathe": ["pathe@2.0.3", "", {}, "sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w=="],
+
+    "permissionless": ["permissionless@0.3.4", "", { "peerDependencies": { "ox": "^0.11.3", "viem": "^2.44.4" }, "optionalPeers": ["ox"] }, "sha512-pml3Do0e/AMoAq89tzpXlhhxmVdOigQCCoC+df/kRCVFiJ9pQTgzKQKhxYTWWB2xW/AOgwBwGzLBfqFZrDpFiA=="],
 
     "picocolors": ["picocolors@1.1.1", "", {}, "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA=="],
 
