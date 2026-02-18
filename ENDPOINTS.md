@@ -27,7 +27,7 @@
 |---|--------|----------|--------|-------|
 | 4 | `GET` | `/api/v1/tokens` | 🟢 Done | 8 tokens (4 Base, 4 Arbitrum) — hook: `useTokens()` |
 | 5 | `GET` | `/api/v1/tokens?stablecoin=true` | 🟢 Done | Filters stablecoins — hook: `useStablecoins()` |
-| 6 | `GET` | `/api/v1/tokens/:address` | 🟡 In Progress | Backend returns 404 for valid addresses — may need `?chain=` param |
+| 6 | `GET` | `/api/v1/tokens/:address` | 🟢 Done | Fixed case-sensitivity bug (`.eq` → `.ilike`). Works with checksum & lowercase |
 
 ## Strategies
 
@@ -127,8 +127,8 @@
 
 | Status | Count |
 |--------|-------|
-| 🟢 Done | 23 |
-| 🟡 In Progress | 9 |
+| 🟢 Done | 24 |
+| 🟡 In Progress | 8 |
 | 🔴 To Do | 26 |
 
 ## Remaining Blockers
