@@ -15,6 +15,7 @@ import { ChainIcon } from '@/components/chain-icon'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { useWallet } from '@/contexts/wallet-context'
 import { useMappedPositions, useMappedUserStats, useMappedTransactions } from '@/hooks/use-mapped-positions'
+import { useUser } from '@/hooks/use-users'
 import type { Transaction } from '@/lib/types'
 import {
   Wallet,
@@ -27,11 +28,12 @@ import {
 import Image from 'next/image'
 
 export default function ProfilePage() {
-  const { isConnected, address, connect } = useWallet()
+  const { isConnected, address, email, connect } = useWallet()
 
   const { data: positions, isLoading: positionsLoading } = useMappedPositions(address)
   const { data: stats, isLoading: statsLoading } = useMappedUserStats(address)
   const { data: transactions, isLoading: txLoading } = useMappedTransactions(address)
+  const { data: user } = useUser(address ?? undefined)
 
   const isLoading = positionsLoading || statsLoading || txLoading
 
@@ -117,11 +119,21 @@ export default function ProfilePage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold">Profile</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-sm text-muted-foreground">
-              {address ? `${address.slice(0, 6)}\u2026${address.slice(-4)}` : 'Connected'}
-            </span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-sm text-muted-foreground">
+                {address ? `${address.slice(0, 6)}\u2026${address.slice(-4)}` : 'Connected'}
+              </span>
+            </div>
+            {email && (
+              <span className="text-sm text-muted-foreground">{email}</span>
+            )}
+            {user?.createdAt && (
+              <span className="text-sm text-muted-foreground">
+                Member since {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              </span>
+            )}
           </div>
         </div>
 

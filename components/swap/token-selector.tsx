@@ -11,9 +11,9 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { TokenIcon } from '@/components/token-icon'
-import { tokens } from '@/lib/mock-data'
+import { useMappedTokens } from '@/hooks/use-mapped-tokens'
 import type { Token } from '@/lib/types'
-import { ChevronDown, Search } from 'lucide-react'
+import { ChevronDown, Search, Loader2 } from 'lucide-react'
 
 interface TokenSelectorProps {
   selectedToken: Token | null
@@ -24,6 +24,7 @@ interface TokenSelectorProps {
 export function TokenSelector({ selectedToken, onSelectToken, excludeToken }: TokenSelectorProps) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const { data: tokens, isLoading } = useMappedTokens()
 
   const filteredTokens = tokens.filter((token) => {
     const matchesSearch =
@@ -64,30 +65,35 @@ export function TokenSelector({ selectedToken, onSelectToken, excludeToken }: To
         </div>
 
         <div className="max-h-64 overflow-y-auto space-y-1">
-          {filteredTokens.map((token) => (
-            <button
-              key={token.symbol}
-              type="button"
-              onClick={() => {
-                onSelectToken(token)
-                setOpen(false)
-                setSearchQuery('')
-              }}
-              className={`w-full flex items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-secondary ${
-                selectedToken?.symbol === token.symbol ? 'bg-secondary' : ''
-              }`}
-            >
-              <TokenIcon token={token} size="lg" />
-              <div>
-                <p className="font-medium">{token.symbol}</p>
-                <p className="text-sm text-muted-foreground">{token.name}</p>
-              </div>
-            </button>
-          ))}
-          {filteredTokens.length === 0 && (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredTokens.length === 0 ? (
             <p className="text-center text-sm text-muted-foreground py-4">
               No tokens found
             </p>
+          ) : (
+            filteredTokens.map((token) => (
+              <button
+                key={token.address}
+                type="button"
+                onClick={() => {
+                  onSelectToken(token)
+                  setOpen(false)
+                  setSearchQuery('')
+                }}
+                className={`w-full flex items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-secondary ${
+                  selectedToken?.symbol === token.symbol ? 'bg-secondary' : ''
+                }`}
+              >
+                <TokenIcon token={token} size="lg" />
+                <div>
+                  <p className="font-medium">{token.symbol}</p>
+                  <p className="text-sm text-muted-foreground">{token.name}</p>
+                </div>
+              </button>
+            ))
           )}
         </div>
       </DialogContent>

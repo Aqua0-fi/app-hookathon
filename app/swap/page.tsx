@@ -16,7 +16,7 @@ import {
 import { TokenSelector } from '@/components/swap/token-selector'
 import { ChainIcon } from '@/components/chain-icon'
 import { fetchSwapQuote } from '@/lib/api'
-import { tokens, chains } from '@/lib/mock-data'
+import { useMappedTokens, useMappedChains } from '@/hooks/use-mapped-tokens'
 import type { Token, Chain } from '@/lib/types'
 import { ArrowDownUp, Settings, Loader2, Clock, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -59,25 +59,44 @@ export default function SwapPage() {
   const { toast } = useToast()
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain()
 
-  // Chain state — single chain, default to Base
-  const [selectedChain, setSelectedChain] = useState<Chain>(chains[0])
+  // Real data from API
+  const { data: tokens } = useMappedTokens()
+  const { data: chains } = useMappedChains()
+
+  // Chain state — single chain, default to first available
+  const [selectedChain, setSelectedChain] = useState<Chain | null>(null)
+
+  // Set default chain once chains load
+  useEffect(() => {
+    if (chains.length > 0 && !selectedChain) {
+      setSelectedChain(chains[0])
+    }
+  }, [chains, selectedChain])
 
   // Detect if wallet is on a different chain than selected
-  const needsChainSwitch = isConnected && !isOnCorrectChain(chainId, selectedChain.id)
+  const needsChainSwitch = isConnected && selectedChain && !isOnCorrectChain(chainId, selectedChain.id)
 
   // Sync with wallet chain on connect
   useEffect(() => {
-    if (chainId) {
+    if (chainId && chains.length > 0) {
       const walletChain = chains.find(c => isOnCorrectChain(chainId, c.id))
       if (walletChain) {
         setSelectedChain(walletChain)
       }
     }
-  }, [chainId])
+  }, [chainId, chains])
 
-  // Form state
-  const [fromToken, setFromToken] = useState<Token | null>(tokens[0])
-  const [toToken, setToToken] = useState<Token | null>(tokens[1])
+  // Form state — set defaults once tokens load
+  const [fromToken, setFromToken] = useState<Token | null>(null)
+  const [toToken, setToToken] = useState<Token | null>(null)
+
+  // Set default tokens once they load
+  useEffect(() => {
+    if (tokens.length > 0 && !fromToken) {
+      setFromToken(tokens[0])
+      if (tokens.length > 1) setToToken(tokens[1])
+    }
+  }, [tokens, fromToken])
   const [fromAmount, setFromAmount] = useState('')
   const [slippage, setSlippage] = useState(0.5)
 
@@ -99,7 +118,7 @@ export default function SwapPage() {
   const fromBalance = balanceData ? Number(balanceData.formatted) : null
 
   const fetchQuote = useCallback(async () => {
-    if (!fromToken || !toToken || !fromAmount || Number(fromAmount) <= 0) {
+    if (!fromToken || !toToken || !fromAmount || Number(fromAmount) <= 0 || !selectedChain) {
       setQuote(null)
       return
     }
@@ -154,12 +173,13 @@ export default function SwapPage() {
   const isValidSwap = fromToken && toToken && Number(fromAmount) > 0 && quote && !needsChainSwitch
 
   const handleSwitchChain = () => {
+    if (!selectedChain) return
     const targetId = getTargetChainId(selectedChain.id)
     switchChain({ chainId: targetId })
   }
 
   // Chain-specific accent color for background orbs
-  const chainColor = selectedChain.color
+  const chainColor = selectedChain?.color ?? '#0052FF'
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -234,7 +254,7 @@ export default function SwapPage() {
           <div>
             <h1 className="text-2xl font-bold">Swap</h1>
             <p className="text-sm text-muted-foreground">
-              Trade tokens on {selectedChain.name}
+              Trade tokens on {selectedChain?.name ?? 'Base'}
             </p>
           </div>
 
@@ -282,23 +302,25 @@ export default function SwapPage() {
         </div>
 
         {/* Chain Toggle */}
-        <div className="mb-4 flex items-center gap-2 rounded-lg bg-secondary/50 p-1">
-          {chains.map((chain) => (
-            <button
-              key={chain.id}
-              type="button"
-              onClick={() => setSelectedChain(chain)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                selectedChain.id === chain.id
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <ChainIcon chain={chain} size="sm" />
-              {chain.name}
-            </button>
-          ))}
-        </div>
+        {chains.length > 0 && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg bg-secondary/50 p-1">
+            {chains.map((chain) => (
+              <button
+                key={chain.id}
+                type="button"
+                onClick={() => setSelectedChain(chain)}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  selectedChain?.id === chain.id
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <ChainIcon chain={chain} size="sm" />
+                {chain.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Swap Card */}
         <Card className="overflow-hidden">
@@ -450,7 +472,7 @@ export default function SwapPage() {
                       Switching...
                     </>
                   ) : (
-                    `Switch to ${selectedChain.name}`
+                    `Switch to ${selectedChain?.name ?? 'correct chain'}`
                   )}
                 </Button>
               ) : !isValidSwap ? (

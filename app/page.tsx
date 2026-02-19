@@ -16,6 +16,7 @@ import { createStrategy } from '@/lib/api'
 import type { CreateStrategyForm, StrategyType } from '@/lib/types'
 import { useMappedStrategies } from '@/hooks/use-mapped-strategies'
 import { useChains } from '@/hooks/use-chains'
+import { useTvl, useVolume, useFees } from '@/hooks/use-metrics'
 import { Plus, Search, Layers } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Suspense } from 'react'
@@ -26,6 +27,9 @@ export default function StrategiesPage() {
   const { isConnected, connect } = useWallet()
   const { data: strategies, isLoading } = useMappedStrategies()
   const { data: apiChains } = useChains()
+  const { data: tvlData } = useTvl()
+  const { data: volumeData } = useVolume()
+  const { data: feesData } = useFees()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [chainFilter, setChainFilter] = useState<string>('all')
@@ -154,33 +158,31 @@ export default function StrategiesPage() {
           </div>
         )}
 
-        {/* Stats Summary */}
-        {!isLoading && filteredStrategies.length > 0 && (
-          <div className="mt-8 grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-6 sm:grid-cols-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Strategies</p>
-              <p className="text-2xl font-bold">{filteredStrategies.length}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Avg. APY</p>
-              <p className="text-2xl font-bold text-emerald-400">
-                {(filteredStrategies.reduce((acc, s) => acc + s.apy, 0) / filteredStrategies.length).toFixed(1)}%
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total TVL</p>
-              <p className="text-2xl font-bold">
-                ${(filteredStrategies.reduce((acc, s) => acc + s.tvl, 0) / 1_000_000).toFixed(1)}M
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Chains Covered</p>
-              <p className="text-2xl font-bold">
-                {new Set(filteredStrategies.flatMap((s) => s.supportedChains.map((c) => c.id))).size}
-              </p>
-            </div>
+        {/* Protocol Stats — real API data */}
+        <div className="mt-8 grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-6 sm:grid-cols-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Total Strategies</p>
+            <p className="text-2xl font-bold">{(strategies ?? []).length}</p>
           </div>
-        )}
+          <div>
+            <p className="text-sm text-muted-foreground">Total TVL</p>
+            <p className="text-2xl font-bold">
+              {tvlData ? `$${(Number(tvlData.totalVtvlUsd) / 1_000_000).toFixed(1)}M` : '$0'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Volume (24h)</p>
+            <p className="text-2xl font-bold">
+              {volumeData ? `$${(volumeData.totalVolume24h / 1_000_000).toFixed(1)}M` : '$0'}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Fees (24h)</p>
+            <p className="text-2xl font-bold text-emerald-400">
+              {feesData ? `$${(feesData.totalLpFees24h + feesData.totalProtocolFees24h).toLocaleString()}` : '$0'}
+            </p>
+          </div>
+        </div>
       </div>
 
       <Suspense fallback={<Loading />}>

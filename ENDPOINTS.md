@@ -19,13 +19,13 @@
 |---|--------|----------|--------|-------|
 | 1 | `GET` | `/health` | 🟢 Done | `{"status":"ok"}` — hook: `useHealth()` |
 | 2 | `GET` | `/ready` | 🟡 In Progress | Supabase ✅, Ponder ✅, Redis ❌ (not configured) |
-| 3 | `GET` | `/api/v1/chains` | 🟢 Done | Returns Base + Unichain — hook: `useChains()` |
+| 3 | `GET` | `/api/v1/chains` | 🟢 Done | Hook: `useChains()` → mapped via `useMappedChains()` → `swap/page.tsx` (chain selector) |
 
 ## Tokens
 
 | # | Method | Endpoint | Status | Notes |
 |---|--------|----------|--------|-------|
-| 4 | `GET` | `/api/v1/tokens` | 🟢 Done | 8 tokens (4 Base, 4 Arbitrum) — hook: `useTokens()` |
+| 4 | `GET` | `/api/v1/tokens` | 🟢 Done | Hook: `useTokens()` → mapped via `useMappedTokens()` → `swap/page.tsx` + `token-selector.tsx` |
 | 5 | `GET` | `/api/v1/tokens?stablecoin=true` | 🟢 Done | Filters stablecoins — hook: `useStablecoins()` |
 | 6 | `GET` | `/api/v1/tokens/:address` | 🟢 Done | Fixed case-sensitivity bug (`.eq` → `.ilike`). Works with checksum & lowercase |
 
@@ -81,15 +81,15 @@
 | # | Method | Endpoint | Status | Notes |
 |---|--------|----------|--------|-------|
 | 34 | `GET` | `/api/v1/metrics` | 🟢 Done | Hook: `useMetrics()` |
-| 35 | `GET` | `/api/v1/metrics/tvl` | 🟢 Done | Hook: `useTvl()` |
-| 36 | `GET` | `/api/v1/metrics/volume` | 🟢 Done | Hook: `useVolume()` |
-| 37 | `GET` | `/api/v1/metrics/fees` | 🟢 Done | Hook: `useFees()` |
+| 35 | `GET` | `/api/v1/metrics/tvl` | 🟢 Done | Hook: `useTvl()` → `app/page.tsx` (Total Value Locked stat) |
+| 36 | `GET` | `/api/v1/metrics/volume` | 🟢 Done | Hook: `useVolume()` → `app/page.tsx` (Volume 24h stat) |
+| 37 | `GET` | `/api/v1/metrics/fees` | 🟢 Done | Hook: `useFees()` → `app/page.tsx` (Fees 24h stat) |
 
 ## Users
 
 | # | Method | Endpoint | Status | Notes |
 |---|--------|----------|--------|-------|
-| 38 | `GET` | `/api/v1/users/:wallet` | 🟢 Done | Hook: `useUser(wallet)` — 404 for unknown wallets is correct |
+| 38 | `GET` | `/api/v1/users/:wallet` | 🟢 Done | Hook: `useUser(wallet)` → `profile/page.tsx` (member since date) — 404 for unknown wallets is correct |
 | 39 | `POST` | `/api/v1/users` | 🔴 To Do | Creates user — write endpoint, deferred |
 | 40 | `GET` | `/api/v1/users/:wallet/preferences` | 🟢 Done | Hook: `useUserPreferences(wallet)` — 404 for unknown is correct |
 | 41 | `PUT` | `/api/v1/users/:wallet/preferences` | 🔴 To Do | Updates preferences — write endpoint, deferred |
@@ -140,3 +140,4 @@
 | **Testnet chains missing** | Backend only returns Base (8453) + Unichain (130). Need Base Sepolia (84532) + Unichain Sepolia (1301) for testnet dev. | Backend |
 | **Token prices null** | All tokens have `priceUsd: null`. Need price feed integration (Coingecko, etc). | Backend |
 | **LP Account RPC errors** | `GET /lp/accounts/:address` and `/balance/:token` return 500 — likely needs valid on-chain LP account address. | Frontend |
+| **AccountFactory not deployed** | Smart contracts not deployed yet. LP Account create flow (`prepare-create`) blocked until CTO deploys contracts and provides factory address. | Backend/CTO |
