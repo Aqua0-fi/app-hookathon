@@ -60,7 +60,6 @@ export default function SwapPage() {
   const { switchChain, isPending: isSwitchingChain } = useSwitchChain()
 
   // Real data from API
-  const { data: tokens } = useMappedTokens()
   const { data: chains } = useMappedChains()
 
   // Chain state — single chain, default to first available
@@ -72,6 +71,9 @@ export default function SwapPage() {
       setSelectedChain(chains[0])
     }
   }, [chains, selectedChain])
+
+  // Fetch tokens filtered by selected chain (avoids duplicates like USDC on Base + Arbitrum)
+  const { data: tokens } = useMappedTokens(selectedChain?.id)
 
   // Detect if wallet is on a different chain than selected
   const needsChainSwitch = isConnected && selectedChain && !isOnCorrectChain(chainId, selectedChain.id)
@@ -89,6 +91,14 @@ export default function SwapPage() {
   // Form state — set defaults once tokens load
   const [fromToken, setFromToken] = useState<Token | null>(null)
   const [toToken, setToToken] = useState<Token | null>(null)
+
+  // Reset selected tokens when chain changes (tokens are different per chain)
+  useEffect(() => {
+    setFromToken(null)
+    setToToken(null)
+    setFromAmount('')
+    setQuote(null)
+  }, [selectedChain?.id])
 
   // Set default tokens once they load
   useEffect(() => {
@@ -360,6 +370,7 @@ export default function SwapPage() {
                   selectedToken={fromToken}
                   onSelectToken={setFromToken}
                   excludeToken={toToken}
+                  chain={selectedChain?.id}
                 />
               </div>
             </div>
@@ -398,6 +409,7 @@ export default function SwapPage() {
                   selectedToken={toToken}
                   onSelectToken={setToToken}
                   excludeToken={fromToken}
+                  chain={selectedChain?.id}
                 />
               </div>
             </div>

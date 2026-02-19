@@ -1,13 +1,32 @@
 import type { Chain } from './types'
 
 /**
+ * Map wrapped / variant symbols to the base asset logo we already have.
+ * e.g. WETH → ETH, USDbC → USDC, WBTC → BTC
+ */
+const SYMBOL_ALIAS: Record<string, string> = {
+  WETH: 'ETH',
+  USDbC: 'USDC',
+  WBTC: 'BTC',
+  'USDC.e': 'USDC',
+  'USDT.e': 'USDT',
+  'DAI.e': 'DAI',
+  cbETH: 'ETH',
+  rETH: 'ETH',
+  stETH: 'ETH',
+  wstETH: 'ETH',
+}
+
+/**
  * Resolve token logo from /public/crypto/{Symbol}.png
  * Logos are manually added to that folder.
- * Falls back to backend logoUrl if available.
+ * Falls back to backend logoUrl if available,
+ * then tries a symbol alias (WETH → ETH), then raw symbol.
  */
 export function getTokenLogo(symbol: string, logoUrl?: string | null): string {
   if (logoUrl) return logoUrl
-  return `/crypto/${symbol}.png`
+  const resolved = SYMBOL_ALIAS[symbol] ?? symbol
+  return `/crypto/${resolved}.png`
 }
 
 /** Chain metadata keyed by chain ID (numeric) */

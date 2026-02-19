@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import type { Token } from '@/lib/types'
 import Image from 'next/image'
 
@@ -15,17 +18,25 @@ const sizeMap = {
 
 export function TokenIcon({ token, size = 'md' }: TokenIconProps) {
   const { className, px } = sizeMap[size]
+  const [hasError, setHasError] = useState(false)
 
   return (
     <div className={`relative flex-shrink-0 rounded-full overflow-hidden ${className}`} title={token.name}>
-      <Image
-        src={token.logo}
-        alt={token.name}
-        width={px}
-        height={px}
-        className="rounded-full"
-        unoptimized
-      />
+      {hasError ? (
+        <div className={`flex items-center justify-center bg-secondary text-muted-foreground font-bold text-[10px] ${className}`}>
+          {token.symbol.slice(0, 2)}
+        </div>
+      ) : (
+        <Image
+          src={token.logo}
+          alt={token.name}
+          width={px}
+          height={px}
+          className="rounded-full"
+          unoptimized
+          onError={() => setHasError(true)}
+        />
+      )}
     </div>
   )
 }

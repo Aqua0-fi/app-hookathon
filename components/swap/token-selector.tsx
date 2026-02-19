@@ -19,12 +19,13 @@ interface TokenSelectorProps {
   selectedToken: Token | null
   onSelectToken: (token: Token) => void
   excludeToken?: Token | null
+  chain?: string
 }
 
-export function TokenSelector({ selectedToken, onSelectToken, excludeToken }: TokenSelectorProps) {
+export function TokenSelector({ selectedToken, onSelectToken, excludeToken, chain }: TokenSelectorProps) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const { data: tokens, isLoading } = useMappedTokens()
+  const { data: tokens, isLoading } = useMappedTokens(chain)
 
   const filteredTokens = tokens.filter((token) => {
     const matchesSearch =
