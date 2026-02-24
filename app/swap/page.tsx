@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,10 +15,13 @@ import {
 } from '@/components/ui/dialog'
 import { TokenSelector } from '@/components/swap/token-selector'
 import { ChainIcon } from '@/components/chain-icon'
-import { fetchSwapQuote } from '@/lib/api'
 import { useMappedTokens, useMappedChains } from '@/hooks/use-mapped-tokens'
+import { useSwapStrategies } from '@/hooks/use-swap-strategies'
+import { useSwapQuote } from '@/hooks/use-swap-quote'
+import { useExecuteSwap } from '@/hooks/use-execute-swap'
+import { BACKEND_CHAIN_IDS } from '@/lib/contracts'
 import type { Token, Chain } from '@/lib/types'
-import { ArrowDownUp, Settings, Loader2, Clock, AlertCircle } from 'lucide-react'
+import { ArrowDownUp, Settings, Loader2, AlertCircle, Droplets } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useWallet } from '@/contexts/wallet-context'
 import { useBalance, useSwitchChain } from 'wagmi'
@@ -38,20 +41,14 @@ function isOnCorrectChain(walletChainId: number | undefined, selectedChainId: st
 }
 
 function getTargetChainId(selectedChainId: string): number {
-  // Use testnet chain IDs: Base Sepolia (84532) and Unichain Sepolia (1301)
   return selectedChainId === 'base' ? baseSepolia.id : 1301
 }
 
-interface SwapQuote {
-  outputAmount: number
-  priceImpact: number
-  estimatedTime: number
-  fees: {
-    network: number
-    protocol: number
-    bridge: number
-  }
-  route: { protocol: string; chain: string }[]
+const STEP_LABELS: Record<string, string> = {
+  approving: 'Approving...',
+  preparing: 'Preparing...',
+  swapping: 'Sending transaction...',
+  confirming: 'Confirming...',
 }
 
 export default function SwapPage() {
@@ -97,7 +94,6 @@ export default function SwapPage() {
     setFromToken(null)
     setToToken(null)
     setFromAmount('')
-    setQuote(null)
   }, [selectedChain?.id])
 
   // Set default tokens once they load
@@ -110,10 +106,51 @@ export default function SwapPage() {
   const [fromAmount, setFromAmount] = useState('')
   const [slippage, setSlippage] = useState(0.5)
 
-  // Quote state
-  const [quote, setQuote] = useState<SwapQuote | null>(null)
-  const [isLoadingQuote, setIsLoadingQuote] = useState(false)
-  const [isSwapping, setIsSwapping] = useState(false)
+  // Backend chain ID for API calls
+  const backendChainId = selectedChain?.id ? BACKEND_CHAIN_IDS[selectedChain.id] : undefined
+
+  // Strategy discovery
+  const {
+    bestStrategy,
+    hasLiquidity,
+    isLoading: isLoadingStrategies,
+  } = useSwapStrategies(fromToken?.address, toToken?.address, backendChainId)
+
+  // Real quote from backend
+  const {
+    data: quoteData,
+    isLoading: isLoadingQuote,
+    error: quoteError,
+  } = useSwapQuote(
+    bestStrategy,
+    fromToken?.address,
+    toToken?.address,
+    fromAmount,
+    fromToken?.decimals,
+    toToken?.decimals,
+    backendChainId,
+  )
+
+  // Swap execution
+  const {
+    execute: executeSwap,
+    reset: resetSwap,
+    step: swapStep,
+    error: swapError,
+    txHash,
+  } = useExecuteSwap(address ?? undefined)
+
+  // Toast on swap completion
+  useEffect(() => {
+    if (swapStep === 'done') {
+      toast({
+        title: 'Swap Successful',
+        description: `Swapped ${fromAmount} ${fromToken?.symbol} for ${quoteData?.amountOut ?? ''} ${toToken?.symbol}`,
+      })
+      setFromAmount('')
+      resetSwap()
+    }
+  }, [swapStep, fromAmount, fromToken?.symbol, toToken?.symbol, quoteData?.amountOut, toast, resetSwap])
 
   // Real wallet balance via wagmi
   const isNativeToken = fromToken?.symbol === 'ETH'
@@ -127,66 +164,42 @@ export default function SwapPage() {
   })
   const fromBalance = balanceData ? Number(balanceData.formatted) : null
 
-  const fetchQuote = useCallback(async () => {
-    if (!fromToken || !toToken || !fromAmount || Number(fromAmount) <= 0 || !selectedChain) {
-      setQuote(null)
-      return
-    }
-
-    setIsLoadingQuote(true)
-    try {
-      const quoteData = await fetchSwapQuote({
-        fromToken: fromToken.symbol,
-        toToken: toToken.symbol,
-        fromChain: selectedChain.id,
-        toChain: selectedChain.id,
-        amount: Number(fromAmount),
-      })
-      setQuote(quoteData)
-    } catch {
-      setQuote(null)
-    } finally {
-      setIsLoadingQuote(false)
-    }
-  }, [fromToken, toToken, selectedChain, fromAmount])
-
-  // Debounced quote fetch
-  useEffect(() => {
-    const timeout = setTimeout(fetchQuote, 500)
-    return () => clearTimeout(timeout)
-  }, [fetchQuote])
-
   const handleSwapDirection = () => {
     setFromToken(toToken)
     setToToken(fromToken)
     setFromAmount('')
-    setQuote(null)
+    resetSwap()
   }
 
-  const handleSwap = async () => {
-    if (!quote) return
+  const handleSwap = () => {
+    if (!bestStrategy || !quoteData || !fromToken || !toToken || !backendChainId) return
 
-    setIsSwapping(true)
-    // Simulate swap transaction
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    toast({
-      title: 'Swap Successful',
-      description: `Swapped ${fromAmount} ${fromToken?.symbol} for ${quote.outputAmount.toFixed(4)} ${toToken?.symbol}`,
+    executeSwap({
+      strategy: bestStrategy,
+      tokenIn: fromToken.address,
+      tokenOut: toToken.address,
+      amountIn: fromAmount,
+      decimalsIn: fromToken.decimals,
+      chainId: backendChainId,
+      slippageBps: Math.round(slippage * 100), // 0.5% → 50 bps
+      amountOutRaw: quoteData.amountOutRaw,
     })
-
-    setFromAmount('')
-    setQuote(null)
-    setIsSwapping(false)
   }
 
-  const isValidSwap = fromToken && toToken && Number(fromAmount) > 0 && quote && !needsChainSwitch
+  const isSwapBusy = swapStep !== 'idle' && swapStep !== 'done' && swapStep !== 'error'
+  const hasValidAmount = !!fromAmount && Number(fromAmount) > 0
+  const isValidSwap = fromToken && toToken && hasValidAmount && quoteData && hasLiquidity && !needsChainSwitch
 
   const handleSwitchChain = () => {
     if (!selectedChain) return
     const targetId = getTargetChainId(selectedChain.id)
     switchChain({ chainId: targetId })
   }
+
+  // Exchange rate from quote
+  const exchangeRate = quoteData && hasValidAmount
+    ? (Number(quoteData.amountOut) / Number(fromAmount)).toFixed(6)
+    : null
 
   // Chain-specific accent color for background orbs
   const chainColor = selectedChain?.color ?? '#0052FF'
@@ -394,7 +407,7 @@ export default function SwapPage() {
             <div className="border-b border-border p-4">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">To</span>
-                {isLoadingQuote && (
+                {(isLoadingQuote || isLoadingStrategies) && (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
@@ -402,7 +415,7 @@ export default function SwapPage() {
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <p className="text-2xl font-medium">
-                    {quote ? quote.outputAmount.toFixed(4) : '0.00'}
+                    {quoteData ? Number(quoteData.amountOut).toFixed(4) : '0.00'}
                   </p>
                 </div>
                 <TokenSelector
@@ -414,51 +427,56 @@ export default function SwapPage() {
               </div>
             </div>
 
-            {/* Quote Details */}
-            {quote && (
-              <div className="border-b border-border bg-secondary/30 p-4 space-y-3">
-                {/* Price Impact */}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Price Impact</span>
-                  <span className={quote.priceImpact > 1 ? 'text-yellow-500' : 'text-foreground'}>
-                    {quote.priceImpact.toFixed(2)}%
-                  </span>
-                </div>
-
-                {/* Fees */}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Network Fee</span>
-                  <span>${quote.fees.network.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Protocol Fee</span>
-                  <span>${quote.fees.protocol.toFixed(2)}</span>
-                </div>
-
-                {/* Estimated Time */}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    Estimated Time
-                  </span>
-                  <span>
-                    {quote.estimatedTime < 60
-                      ? `~${quote.estimatedTime}s`
-                      : `~${Math.ceil(quote.estimatedTime / 60)} min`}
-                  </span>
+            {/* No Liquidity Warning */}
+            {fromToken && toToken && hasValidAmount && !isLoadingStrategies && !hasLiquidity && (
+              <div className="border-b border-border bg-muted/50 p-4">
+                <div className="flex items-start gap-3">
+                  <Droplets className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">No liquidity available</p>
+                    <p className="text-xs text-muted-foreground">
+                      There are no active strategies for {fromToken.symbol}/{toToken.symbol} on {selectedChain?.name ?? 'this chain'} yet.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Warning for high price impact */}
-            {quote && quote.priceImpact > 2 && (
-              <div className="border-b border-border bg-yellow-500/10 p-4">
+            {/* Quote Details */}
+            {quoteData && (
+              <div className="border-b border-border bg-secondary/30 p-4 space-y-3">
+                {/* Exchange Rate */}
+                {exchangeRate && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Rate</span>
+                    <span>1 {fromToken?.symbol} = {exchangeRate} {toToken?.symbol}</span>
+                  </div>
+                )}
+
+                {/* Strategy Fee */}
+                {bestStrategy && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Strategy Fee</span>
+                    <span>{(bestStrategy.feeBps / 100).toFixed(2)}%</span>
+                  </div>
+                )}
+
+                {/* Slippage */}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Max Slippage</span>
+                  <span>{slippage}%</span>
+                </div>
+              </div>
+            )}
+
+            {/* Swap Error */}
+            {(swapError || quoteError) && (
+              <div className="border-b border-border bg-destructive/10 p-4">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-yellow-500 shrink-0" />
+                  <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-yellow-500">High Price Impact</p>
-                    <p className="text-xs text-muted-foreground">
-                      This swap has a {quote.priceImpact.toFixed(2)}% price impact. Consider reducing your swap amount.
+                    <p className="text-sm font-medium text-destructive">
+                      {swapError ?? 'Failed to fetch quote'}
                     </p>
                   </div>
                 </div>
@@ -487,29 +505,28 @@ export default function SwapPage() {
                     `Switch to ${selectedChain?.name ?? 'correct chain'}`
                   )}
                 </Button>
+              ) : isSwapBusy ? (
+                <Button className="w-full" size="lg" disabled>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {STEP_LABELS[swapStep] ?? 'Processing...'}
+                </Button>
               ) : !isValidSwap ? (
                 <Button className="w-full" size="lg" disabled>
-                  {!fromAmount || Number(fromAmount) <= 0
+                  {!hasValidAmount
                     ? 'Enter an amount'
-                    : isLoadingQuote
+                    : isLoadingStrategies || isLoadingQuote
                       ? 'Fetching quote...'
-                      : 'Review Swap'}
+                      : !hasLiquidity
+                        ? 'No liquidity'
+                        : 'Swap'}
                 </Button>
               ) : (
                 <Button
                   className="w-full"
                   size="lg"
                   onClick={handleSwap}
-                  disabled={isSwapping}
                 >
-                  {isSwapping ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Swapping...
-                    </>
-                  ) : (
-                    'Review Swap'
-                  )}
+                  Swap
                 </Button>
               )}
             </div>

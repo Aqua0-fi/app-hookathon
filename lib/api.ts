@@ -125,26 +125,3 @@ export async function deployLiquidity(params: {
   }
 }
 
-// Swap quote API
-export async function fetchSwapQuote(params: {
-  fromToken: string
-  toToken: string
-  fromChain: string
-  toChain: string
-  amount: number
-}) {
-  await delay(1000)
-  return {
-    outputAmount: params.amount * 0.998, // Simulated output
-    priceImpact: 0.12,
-    estimatedTime: 30, // seconds (single-chain)
-    fees: {
-      network: params.fromChain === 'base' ? 0.50 : 0.30,
-      protocol: params.amount * 0.001,
-      bridge: 0,
-    },
-    route: [
-      { protocol: 'Aqua0', chain: params.fromChain },
-    ],
-  }
-}

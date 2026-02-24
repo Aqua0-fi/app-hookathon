@@ -16,7 +16,6 @@ import {
   fetchUserBalances,
   validateBalance,
   deployLiquidity,
-  fetchSwapQuote,
 } from '../api'
 
 describe('API functions', () => {
@@ -198,43 +197,4 @@ describe('API functions', () => {
     })
   })
 
-  describe('fetchSwapQuote', () => {
-    it('returns a quote with expected structure', async () => {
-      const result = await fetchSwapQuote({
-        fromToken: 'ETH',
-        toToken: 'USDC',
-        fromChain: 'base',
-        toChain: 'base',
-        amount: 1,
-      })
-      expect(result).toHaveProperty('outputAmount')
-      expect(result).toHaveProperty('priceImpact')
-      expect(result).toHaveProperty('estimatedTime')
-      expect(result).toHaveProperty('fees')
-      expect(result).toHaveProperty('route')
-    })
-
-    it('returns bridge fee of 0 for single-chain', async () => {
-      const result = await fetchSwapQuote({
-        fromToken: 'ETH',
-        toToken: 'USDC',
-        fromChain: 'base',
-        toChain: 'base',
-        amount: 1,
-      })
-      expect(result.fees.bridge).toBe(0)
-    })
-
-    it('returns single-hop route', async () => {
-      const result = await fetchSwapQuote({
-        fromToken: 'ETH',
-        toToken: 'USDC',
-        fromChain: 'base',
-        toChain: 'base',
-        amount: 1,
-      })
-      expect(result.route).toHaveLength(1)
-      expect(result.route[0].protocol).toBe('Aqua0')
-    })
-  })
 })
