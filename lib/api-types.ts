@@ -230,3 +230,33 @@ export interface RebalancerOperationsResponse {
 export interface RebalancerPendingResponse {
   pendingOperations: unknown[]
 }
+
+// POST /api/v1/swaps/quote & /api/v1/swaps/prepare — request body
+export interface SwapOrderRequest {
+  order: {
+    maker: string       // LP Account address (strategy.app)
+    traits: string      // uint256 decimal string (includes USE_AQUA_BIT = 2^254)
+    data: string        // "0x..." strategy bytecode hex
+  }
+  tokenIn: string       // "0x..." token address
+  tokenOut: string      // "0x..." token address
+  amountIn: string      // uint256 decimal string (smallest unit)
+  takerData: string     // "0x..." threshold + flags
+}
+
+// POST /api/v1/swaps/quote — response
+export interface SwapQuoteResponse {
+  quote: {
+    amountIn: string       // uint256 decimal string
+    amountOut: string      // uint256 decimal string
+    strategyHash: string   // "0x..." bytes32
+  }
+}
+
+// POST /api/v1/swaps/prepare — response
+export interface SwapPrepareResponse {
+  calldata: {
+    to: string    // SwapVMRouter address
+    data: string  // encoded calldata hex
+  }
+}

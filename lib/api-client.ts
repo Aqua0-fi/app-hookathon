@@ -32,8 +32,8 @@ class ApiClient {
   }
 
   /** POST request. Same path rules as get(). */
-  async post<T>(path: string, body: unknown): Promise<T> {
-    const url = this.buildUrl(path)
+  async post<T>(path: string, body: unknown, params?: Record<string, string>): Promise<T> {
+    const url = this.buildUrl(path, params)
     const res = await fetch(url, {
       method: 'POST',
       headers: this.headers,
