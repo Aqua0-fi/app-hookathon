@@ -20,13 +20,15 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Slider } from '@/components/ui/slider'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { chains, tokens } from '@/lib/mock-data'
-import type { StrategyType, CreateStrategyForm, Token } from '@/lib/types'
-import { ArrowLeft, ArrowRight, Check, Loader2, Info } from 'lucide-react'
-import { buildConstantProductProgram } from '@/lib/swapvm/constantProduct'
-import { buildStableSwapProgram } from '@/lib/swapvm/stableSwap'
+import { useMappedTokens, useMappedChains } from '@/hooks/use-mapped-tokens'
+import { useDeployStrategy } from '@/hooks/use-deploy-strategy'
+import type { DeployStep } from '@/hooks/use-deploy-strategy'
+import { useWallet } from '@/contexts/wallet-context'
+import { BACKEND_CHAIN_IDS } from '@/lib/contracts'
 import { calculateRates } from '@/lib/swapvm/encoding'
-import { parseUnits, type Address } from 'viem'
+import type { StrategyType, CreateStrategyForm, Token } from '@/lib/types'
+import type { Address } from 'viem'
+import { ArrowLeft, ArrowRight, Check, Loader2, Info } from 'lucide-react'
 import { TokenIcon } from '@/components/token-icon'
 import { ChainIcon } from '@/components/chain-icon'
 import { Card, CardContent } from '@/components/ui/card'
@@ -54,40 +56,56 @@ const feeTiers = [0.01, 0.05, 0.3, 1.0]
 
 const STABLECOINS = new Set(['USDC', 'USDT', 'DAI'])
 
-// Mock token prices in USD
-const tokenPrices: Record<string, number> = {
-  ETH: 2000,
-  USDC: 1,
-  USDT: 1,
-  WBTC: 42000,
-  wSOL: 150,
-  DAI: 1,
-}
-
-// Mock user balances
-const userBalances: Record<string, number> = {
-  ETH: 5.25,
-  USDC: 12500,
-  USDT: 8000,
-  WBTC: 0.15,
-  wSOL: 25.0,
-  DAI: 3500,
+const DEPLOY_STEP_LABELS: Record<DeployStep, string> = {
+  'idle': '',
+  'ensuring-account': 'Creating LP Account...',
+  'building': 'Building strategy...',
+  'transferring': 'Transferring tokens...',
+  'approving': 'Approving tokens...',
+  'shipping': 'Deploying strategy...',
+  'confirming': 'Confirming transaction...',
+  'done': 'Strategy deployed!',
+  'error': 'Deployment failed',
 }
 
 export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStrategyModalProps) {
+  const { address } = useWallet()
+  const { data: tokens, resolveAddress } = useMappedTokens()
+  const { data: chains } = useMappedChains()
+
+  const {
+    execute: executeDeploy,
+    reset: resetDeploy,
+    step: deployStep,
+    error: deployError,
+    result: deployResult,
+  } = useDeployStrategy(address ?? undefined)
+
+  const isDeploying = deployStep !== 'idle' && deployStep !== 'done' && deployStep !== 'error'
+
   const [currentStep, setCurrentStep] = useState(1)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [amountA, setAmountA] = useState('')
   const [amountB, setAmountB] = useState('')
   const [aParameter, setAParameter] = useState(0.8)
   const [form, setForm] = useState<CreateStrategyForm>({
     type: 'constant-product',
-    tokenPair: ['ETH', 'USDC'],
+    tokenPair: ['', ''],
     feeTier: 0.3,
     priceRange: undefined,
     chains: [],
-    initialLiquidity: 1000,
+    initialLiquidity: 0,
   })
+
+  // Set default token pair once tokens load
+  const defaultsSet = useState(false)
+  if (tokens.length > 0 && !defaultsSet[0]) {
+    const defaultA = tokens.find(t => t.symbol === 'ETH') || tokens[0]
+    const defaultB = tokens.find(t => t.symbol === 'USDC') || tokens[1]
+    if (defaultA && defaultB) {
+      setForm(prev => ({ ...prev, tokenPair: [defaultA.symbol, defaultB.symbol] }))
+      defaultsSet[1](true)
+    }
+  }
 
   // Filter tokens: stable-swap only shows stablecoins
   const availableTokens = form.type === 'stable-swap'
@@ -98,56 +116,12 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
   const tokenA = tokens.find(t => t.symbol === form.tokenPair[0])
   const tokenB = tokens.find(t => t.symbol === form.tokenPair[1])
 
-  // Calculate current price ratio between tokens
-  const currentPrice = tokenA && tokenB
-    ? (tokenPrices[tokenA.symbol] || 1) / (tokenPrices[tokenB.symbol] || 1)
-    : 1
-
-  // Format amount based on token type
-  const formatAmount = (amount: number, symbol: string): string => {
-    return STABLECOINS.has(symbol) ? amount.toFixed(2) : amount.toFixed(6)
-  }
-
-  // Handle amount A change - auto-calculate B
   const handleAmountAChange = (value: string) => {
     setAmountA(value)
-    const numValue = parseFloat(value) || 0
-    if (numValue > 0 && tokenB) {
-      const equivalentB = numValue * currentPrice
-      setAmountB(formatAmount(equivalentB, tokenB.symbol))
-      // Update total USD value
-      const totalUsd = numValue * (tokenPrices[form.tokenPair[0]] || 1) * 2
-      setForm(prev => ({ ...prev, initialLiquidity: totalUsd }))
-    } else {
-      setAmountB('')
-    }
   }
 
-  // Handle amount B change - auto-calculate A
   const handleAmountBChange = (value: string) => {
     setAmountB(value)
-    const numValue = parseFloat(value) || 0
-    if (numValue > 0 && tokenA) {
-      const equivalentA = numValue / currentPrice
-      setAmountA(formatAmount(equivalentA, tokenA.symbol))
-      // Update total USD value
-      const totalUsd = numValue * (tokenPrices[form.tokenPair[1]] || 1) * 2
-      setForm(prev => ({ ...prev, initialLiquidity: totalUsd }))
-    } else {
-      setAmountA('')
-    }
-  }
-
-  // Handle max button for token A
-  const handleMaxA = () => {
-    const balance = userBalances[form.tokenPair[0]] || 0
-    handleAmountAChange(balance.toString())
-  }
-
-  // Handle max button for token B
-  const handleMaxB = () => {
-    const balance = userBalances[form.tokenPair[1]] || 0
-    handleAmountBChange(balance.toString())
   }
 
   const handleNext = () => {
@@ -159,81 +133,53 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
   }
 
   const handleSubmit = async () => {
-    setIsSubmitting(true)
-    try {
-      // Generate bytecode for Constant Product
-      if (form.type === 'constant-product' && tokenA && tokenB) {
-        try {
-          const program = buildConstantProductProgram(
-            tokenA.address as Address,
-            tokenB.address as Address,
-            parseUnits(amountA, tokenA.decimals),
-            parseUnits(amountB, tokenB.decimals),
-            Math.round(form.feeTier * 100), // 0.3% → 30 bps
-          )
+    if (!tokenA || !tokenB) return
 
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          console.log('✅ CONSTANT PRODUCT BYTECODE GENERATED')
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          console.log('Pair:', tokenA.symbol + '/' + tokenB.symbol)
-          console.log('Amounts:', amountA, tokenA.symbol, '/', amountB, tokenB.symbol)
-          console.log('Fee:', form.feeTier + '% (' + Math.round(form.feeTier * 100) + ' bps)')
-          console.log('Bytecode:', program)
-          console.log('Length:', (program.length - 2) / 2, 'bytes')
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        } catch (err) {
-          console.error('❌ Bytecode generation failed:', err)
-        }
-      }
+    const selectedChain = form.chains[0]
+    const chainId = BACKEND_CHAIN_IDS[selectedChain]
+    if (!chainId) return
 
-      // Generate bytecode for Stable Swap
-      if (form.type === 'stable-swap' && tokenA && tokenB) {
-        try {
-          const { rateLt, rateGt } = calculateRates(
-            tokenA.address as Address,
-            tokenA.decimals,
-            tokenB.address as Address,
-            tokenB.decimals,
-          )
+    // Resolve chain-specific token addresses
+    const addr0 = resolveAddress(tokenA.symbol, selectedChain) ?? tokenA.address
+    const addr1 = resolveAddress(tokenB.symbol, selectedChain) ?? tokenB.address
 
-          // A parameter scaled to 1e27 (e.g. 0.8 → 0.8e27)
-          const linearWidth = BigInt(Math.round(aParameter * 1e9)) * 10n ** 18n
+    const isStableSwap = form.type === 'stable-swap'
 
-          const program = buildStableSwapProgram({
-            token0: tokenA.address as Address,
-            token1: tokenB.address as Address,
-            balance0: parseUnits(amountA, tokenA.decimals),
-            balance1: parseUnits(amountB, tokenB.decimals),
-            linearWidth,
-            rateLt,
-            rateGt,
-            feeBps: Math.round(form.feeTier * 100), // 0.3% → 30 bps
-          })
+    // Compute stableSwap-specific params
+    let linearWidth: string | undefined
+    let rate0: string | undefined
+    let rate1: string | undefined
 
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          console.log('✅ STABLE SWAP BYTECODE GENERATED')
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          console.log('Pair:', tokenA.symbol + '/' + tokenB.symbol)
-          console.log('Amounts:', amountA, tokenA.symbol, '/', amountB, tokenB.symbol)
-          console.log('Fee:', form.feeTier + '% (' + Math.round(form.feeTier * 100) + ' bps)')
-          console.log('A Parameter:', aParameter)
-          console.log('linearWidth:', linearWidth.toString())
-          console.log('rateLt:', rateLt.toString(), '| rateGt:', rateGt.toString())
-          console.log('Bytecode:', program)
-          console.log('Length:', (program.length - 2) / 2, 'bytes')
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-        } catch (err) {
-          console.error('❌ StableSwap bytecode generation failed:', err)
-        }
-      }
+    if (isStableSwap) {
+      // linearWidth = A parameter * 1e27
+      const aBigInt = BigInt(Math.round(aParameter * 10)) * (10n ** 26n) // e.g. 0.8 → 8 * 1e26 = 8e26
+      linearWidth = aBigInt.toString()
 
-      // Continue with existing mock flow
-      await onSubmit(form)
-      onOpenChange(false)
-      setCurrentStep(1)
-    } finally {
-      setIsSubmitting(false)
+      // Compute decimal normalization rates
+      const { rateLt, rateGt } = calculateRates(
+        addr0 as Address, tokenA.decimals,
+        addr1 as Address, tokenB.decimals,
+      )
+      // Map sorted rates back to token0/token1 order
+      const isToken0Lt = addr0.toLowerCase() < addr1.toLowerCase()
+      rate0 = (isToken0Lt ? rateLt : rateGt).toString()
+      rate1 = (isToken0Lt ? rateGt : rateLt).toString()
     }
+
+    await executeDeploy({
+      template: isStableSwap ? 'stableSwap' : 'constantProduct',
+      token0: addr0,
+      token1: addr1,
+      token0Decimals: tokenA.decimals,
+      token1Decimals: tokenB.decimals,
+      amount0: amountA,
+      amount1: amountB,
+      feeBps: Math.round(form.feeTier * 100),
+      chainId,
+      linearWidth,
+      rate0,
+      rate1,
+    })
   }
 
   const canProceed = () => {
@@ -414,52 +360,19 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
         {/* Step 4: Initial Liquidity */}
         {currentStep === 4 && (
           <div className="space-y-4">
-            {/* Current Price Info */}
-            {tokenA && tokenB && (
-              <Card className="bg-muted/50">
-                <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground">Current Price</p>
-                  <p className="font-semibold">
-                    1 {tokenA.symbol} = {currentPrice.toFixed(currentPrice < 10 ? 4 : 2)} {tokenB.symbol}
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Token A Input */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {tokenA && <TokenIcon token={tokenA} size="sm" />}
-                  <Label className="font-semibold">{form.tokenPair[0]}</Label>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  Balance: {userBalances[form.tokenPair[0]]?.toFixed(4) || '0'}
-                </span>
+              <div className="flex items-center gap-2">
+                {tokenA && <TokenIcon token={tokenA} size="sm" />}
+                <Label className="font-semibold">{form.tokenPair[0]}</Label>
               </div>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={amountA}
-                  onChange={(e) => handleAmountAChange(e.target.value)}
-                  className="pr-16 text-lg font-mono"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="absolute right-1 top-1/2 h-7 -translate-y-1/2 text-xs"
-                  onClick={handleMaxA}
-                >
-                  MAX
-                </Button>
-              </div>
-              {amountA && (
-                <p className="text-xs text-muted-foreground">
-                  = ${(parseFloat(amountA) * (tokenPrices[form.tokenPair[0]] || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              )}
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={amountA}
+                onChange={(e) => handleAmountAChange(e.target.value)}
+                className="text-lg font-mono"
+              />
             </div>
 
             {/* Plus indicator */}
@@ -471,53 +384,18 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
 
             {/* Token B Input */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {tokenB && <TokenIcon token={tokenB} size="sm" />}
-                  <Label className="font-semibold">{form.tokenPair[1]}</Label>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  Balance: {userBalances[form.tokenPair[1]]?.toFixed(4) || '0'}
-                </span>
+              <div className="flex items-center gap-2">
+                {tokenB && <TokenIcon token={tokenB} size="sm" />}
+                <Label className="font-semibold">{form.tokenPair[1]}</Label>
               </div>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={amountB}
-                  onChange={(e) => handleAmountBChange(e.target.value)}
-                  className="pr-16 text-lg font-mono"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="absolute right-1 top-1/2 h-7 -translate-y-1/2 text-xs"
-                  onClick={handleMaxB}
-                >
-                  MAX
-                </Button>
-              </div>
-              {amountB && (
-                <p className="text-xs text-muted-foreground">
-                  = ${(parseFloat(amountB) * (tokenPrices[form.tokenPair[1]] || 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              )}
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={amountB}
+                onChange={(e) => handleAmountBChange(e.target.value)}
+                className="text-lg font-mono"
+              />
             </div>
-
-            {/* Total Value */}
-            {(amountA || amountB) && (
-              <Card className="border-primary/50 bg-primary/5">
-                <CardContent className="p-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Value</span>
-                    <span className="font-semibold text-primary">
-                      ${form.initialLiquidity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* A Parameter — StableSwap only */}
             {form.type === 'stable-swap' && (
@@ -589,22 +467,53 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
                 <span className="text-muted-foreground">{form.tokenPair[0]}</span>
                 <span className="font-medium">{amountA}</span>
               </div>
-              <div className="flex justify-between mb-2">
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">{form.tokenPair[1]}</span>
                 <span className="font-medium">{amountB}</span>
-              </div>
-              <div className="flex justify-between border-t border-border pt-2">
-                <span className="text-muted-foreground">Total Value</span>
-                <span className="font-semibold text-primary">${form.initialLiquidity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
         )}
         </div>
 
+        {/* Deploy Progress */}
+        {isDeploying && (
+          <Card className="mt-4 border-primary/30 bg-primary/5">
+            <CardContent className="flex items-center gap-3 p-3">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-sm font-medium">{DEPLOY_STEP_LABELS[deployStep]}</span>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Deploy Error */}
+        {deployStep === 'error' && (
+          <Card className="mt-4 border-destructive/30 bg-destructive/5">
+            <CardContent className="p-3">
+              <p className="text-sm text-destructive">{deployError || 'Deployment failed'}</p>
+              <Button variant="outline" size="sm" className="mt-2" onClick={() => resetDeploy()}>
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Deploy Success */}
+        {deployStep === 'done' && deployResult && (
+          <Card className="mt-4 border-green-500/30 bg-green-500/5">
+            <CardContent className="p-3 space-y-1">
+              <p className="text-sm font-medium text-green-500">Strategy deployed!</p>
+              <p className="font-mono text-xs text-muted-foreground">Tx: {deployResult.txHash}</p>
+              <Button variant="outline" size="sm" className="mt-2" onClick={() => { resetDeploy(); onOpenChange(false); setCurrentStep(1) }}>
+                Done
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Navigation Buttons */}
         <div className="mt-6 flex justify-between flex-shrink-0">
-          <Button variant="outline" onClick={handleBack} disabled={currentStep === 1}>
+          <Button variant="outline" onClick={handleBack} disabled={currentStep === 1 || isDeploying}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
@@ -615,11 +524,11 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? (
+            <Button onClick={handleSubmit} disabled={isDeploying || deployStep === 'done'}>
+              {isDeploying ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  {DEPLOY_STEP_LABELS[deployStep] || 'Deploying...'}
                 </>
               ) : (
                 'Create Strategy'

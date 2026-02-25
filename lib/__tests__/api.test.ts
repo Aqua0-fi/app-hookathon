@@ -15,7 +15,6 @@ import {
   fetchStrategyDetail,
   fetchUserBalances,
   validateBalance,
-  deployLiquidity,
 } from '../api'
 
 describe('API functions', () => {
@@ -177,23 +176,6 @@ describe('API functions', () => {
     it('returns invalid for unknown token', async () => {
       const result = await validateBalance('UNKNOWN', 1)
       expect(result.valid).toBe(false)
-    })
-  })
-
-  describe('deployLiquidity', () => {
-    it('returns success with txHash', async () => {
-      const result = await deployLiquidity({
-        strategyType: 'stable-swap',
-        tokenA: 'USDC',
-        tokenB: 'USDT',
-        feeTier: 0.01,
-        chains: ['base'],
-        amountA: 1000,
-        amountB: 1000,
-      })
-      expect(result.success).toBe(true)
-      expect(result.txHash).toBeDefined()
-      expect(result.positionId).toBeDefined()
     })
   })
 

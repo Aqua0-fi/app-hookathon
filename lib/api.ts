@@ -105,23 +105,4 @@ export async function validateBalance(token: string, amount: number) {
   return { valid: amount <= balance, balance, requested: amount }
 }
 
-// Deploy liquidity API (mock)
-export async function deployLiquidity(params: {
-  strategyType: string
-  tokenA: string
-  tokenB: string
-  feeTier: number
-  chains: string[]
-  amountA: number
-  amountB: number
-  priceRange?: { min: number; max: number }
-}) {
-  await delay(2000)
-  // Simulate success
-  return { 
-    success: true, 
-    txHash: '0x' + Math.random().toString(16).slice(2, 10) + '...' + Math.random().toString(16).slice(2, 6),
-    positionId: String(Math.floor(Math.random() * 1000)),
-  }
-}
 

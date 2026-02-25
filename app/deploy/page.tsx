@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense, useCallback } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,12 +12,19 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { TokenIcon } from '@/components/token-icon'
-import { fetchTokens, fetchChains, fetchUserBalances, deployLiquidity, fetchStrategy } from '@/lib/api'
+import { fetchStrategy } from '@/lib/api'
+import { useMappedTokens, useMappedChains } from '@/hooks/use-mapped-tokens'
+import { useDeployStrategy } from '@/hooks/use-deploy-strategy'
+import type { DeployStep } from '@/hooks/use-deploy-strategy'
+import { useWallet } from '@/contexts/wallet-context'
+import { BACKEND_CHAIN_IDS } from '@/lib/contracts'
+import { calculateRates } from '@/lib/swapvm/encoding'
 import type { Token, Chain, StrategyType } from '@/lib/types'
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Check, 
+import type { Address } from 'viem'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
   ChevronRight,
   AlertTriangle,
   Loader2,
@@ -31,8 +38,6 @@ interface DeployFormState {
   tokenA: Token | null
   tokenB: Token | null
   feeTier: number
-  lowerPrice: string
-  upperPrice: string
   selectedChains: string[]
   amountA: string
   amountB: string
@@ -43,8 +48,6 @@ const initialFormState: DeployFormState = {
   tokenA: null,
   tokenB: null,
   feeTier: 0.3,
-  lowerPrice: '',
-  upperPrice: '',
   selectedChains: [],
   amountA: '',
   amountB: '',
@@ -74,144 +77,76 @@ const feeTiers = [
   { value: 1, label: '1%', description: 'Exotic pairs' },
 ]
 
-// Mock token prices in USD
-const tokenPrices: Record<string, number> = {
-  ETH: 2000,
-  WBTC: 42000,
-  USDC: 1,
-  USDT: 1,
-  wSOL: 150,
-  DAI: 1,
-}
-
-function formatCurrency(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`
-  return `$${value.toFixed(2)}`
+const DEPLOY_STEP_LABELS: Record<DeployStep, string> = {
+  'idle': '',
+  'ensuring-account': 'Creating LP Account...',
+  'building': 'Building strategy...',
+  'transferring': 'Transferring tokens...',
+  'approving': 'Approving tokens...',
+  'shipping': 'Deploying strategy...',
+  'confirming': 'Confirming transaction...',
+  'done': 'Strategy deployed!',
+  'error': 'Deployment failed',
 }
 
 function DeployPageContent() {
   const router = useRouter()
+  const { isConnected, address } = useWallet()
   const [step, setStep] = useState(1)
   const [form, setForm] = useState<DeployFormState>(initialFormState)
-  const [tokens, setTokens] = useState<Token[]>([])
-  const [chains, setChains] = useState<Chain[]>([])
-  const [balances, setBalances] = useState<Record<string, number>>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [isDeploying, setIsDeploying] = useState(false)
-  const [deployResult, setDeployResult] = useState<{ success: boolean; txHash?: string; error?: string } | null>(null)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
-  const [lastEditedAmount, setLastEditedAmount] = useState<'A' | 'B' | null>(null)
   const [preselectedStrategyId, setPreselectedStrategyId] = useState<string | null>(null)
 
-  // Calculate current price between tokens
-  const currentPrice = form.tokenA && form.tokenB 
-    ? (tokenPrices[form.tokenA.symbol] || 1) / (tokenPrices[form.tokenB.symbol] || 1)
-    : 1
+  // Real data from API
+  const { data: tokens, isLoading: tokensLoading, resolveAddress } = useMappedTokens()
+  const { data: chains, isLoading: chainsLoading } = useMappedChains()
+  const isLoading = tokensLoading || chainsLoading
+
+  // Deploy hook
+  const {
+    execute: executeDeploy,
+    reset: resetDeploy,
+    step: deployStep,
+    error: deployError,
+    result: deployResult,
+  } = useDeployStrategy(address ?? undefined)
+
+  const isDeploying = deployStep !== 'idle' && deployStep !== 'done' && deployStep !== 'error'
 
   const totalSteps = 5
 
-  // Load initial data
-  useEffect(() => {
-    async function loadData() {
-      setIsLoading(true)
-      const [tokensData, chainsData, balancesData] = await Promise.all([
-        fetchTokens(),
-        fetchChains(),
-        fetchUserBalances(),
-      ])
-      setTokens(tokensData)
-      setChains(chainsData)
-      setBalances(balancesData)
-      
-      // If preselected strategy, load it
-      if (preselectedStrategyId) {
-        const strategy = await fetchStrategy(preselectedStrategyId)
-        if (strategy) {
-          setForm(prev => ({
-            ...prev,
-            strategyType: strategy.type,
-            tokenA: strategy.tokenPair[0],
-            tokenB: strategy.tokenPair[1],
-            feeTier: strategy.feeTier,
-            selectedChains: [strategy.supportedChains[0]?.id || 'base'],
-          }))
-          setStep(2)
-        }
-      }
-      
-      setIsLoading(false)
-    }
-    loadData()
-  }, [preselectedStrategyId])
-
+  // Load preselected strategy from URL param
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setPreselectedStrategyId(params.get('strategy'))
   }, [])
 
-  // Auto-calculate equivalent amount when one changes
-  const calculateEquivalentAmount = useCallback((amount: number, fromToken: 'A' | 'B'): number => {
-    if (!form.tokenA || !form.tokenB) return 0
-    
-    const priceA = tokenPrices[form.tokenA.symbol] || 1
-    const priceB = tokenPrices[form.tokenB.symbol] || 1
-    
-    if (fromToken === 'A') {
-      // User entered amount for Token A, calculate equivalent Token B
-      const valueUSD = amount * priceA
-      return valueUSD / priceB
-    } else {
-      // User entered amount for Token B, calculate equivalent Token A
-      const valueUSD = amount * priceB
-      return valueUSD / priceA
+  useEffect(() => {
+    if (!preselectedStrategyId) return
+    async function loadPreselected() {
+      const strategy = await fetchStrategy(preselectedStrategyId!)
+      if (strategy) {
+        setForm(prev => ({
+          ...prev,
+          strategyType: strategy.type,
+          tokenA: strategy.tokenPair[0],
+          tokenB: strategy.tokenPair[1],
+          feeTier: strategy.feeTier,
+          selectedChains: [strategy.supportedChains[0]?.id || 'base'],
+        }))
+        setStep(2)
+      }
     }
-  }, [form.tokenA, form.tokenB])
-
-  // Format amount based on token type (stables get 2 decimals, others get more)
-  const formatAmount = (amount: number, tokenSymbol: string | undefined): string => {
-    if (!tokenSymbol) return amount.toFixed(6)
-    const isStable = ['USDC', 'USDT', 'DAI'].includes(tokenSymbol)
-    return isStable ? amount.toFixed(2) : amount.toFixed(6)
-  }
+    loadPreselected()
+  }, [preselectedStrategyId])
 
   const handleAmountAChange = (value: string) => {
-    setLastEditedAmount('A')
-    const numValue = parseFloat(value) || 0
-    const equivalentB = calculateEquivalentAmount(numValue, 'A')
-    setForm(prev => ({
-      ...prev,
-      amountA: value,
-      amountB: numValue > 0 ? formatAmount(equivalentB, prev.tokenB?.symbol) : '',
-    }))
+    setForm(prev => ({ ...prev, amountA: value }))
   }
 
   const handleAmountBChange = (value: string) => {
-    setLastEditedAmount('B')
-    const numValue = parseFloat(value) || 0
-    const equivalentA = calculateEquivalentAmount(numValue, 'B')
-    setForm(prev => ({
-      ...prev,
-      amountB: value,
-      amountA: numValue > 0 ? formatAmount(equivalentA, prev.tokenA?.symbol) : '',
-    }))
+    setForm(prev => ({ ...prev, amountB: value }))
   }
-
-  const handleMaxA = () => {
-    if (form.tokenA) {
-      const maxAmount = balances[form.tokenA.symbol] || 0
-      handleAmountAChange(String(maxAmount))
-    }
-  }
-
-  const handleMaxB = () => {
-    if (form.tokenB) {
-      const maxAmount = balances[form.tokenB.symbol] || 0
-      handleAmountBChange(String(maxAmount))
-    }
-  }
-
-  // Set price range from preset
   // Validate current step
   const validateStep = (): boolean => {
     const errors: string[] = []
@@ -234,12 +169,6 @@ function DeployPageContent() {
           const amountB = parseFloat(form.amountB) || 0
           if (amountA <= 0) errors.push('Please enter amount for Token A')
           if (amountB <= 0) errors.push('Please enter amount for Token B')
-          if (form.tokenA && amountA > (balances[form.tokenA.symbol] || 0)) {
-            errors.push(`Insufficient ${form.tokenA.symbol} balance`)
-          }
-          if (form.tokenB && amountB > (balances[form.tokenB.symbol] || 0)) {
-            errors.push(`Insufficient ${form.tokenB.symbol} balance`)
-          }
         }
         break
     }
@@ -261,38 +190,52 @@ function DeployPageContent() {
 
   const handleDeploy = async () => {
     if (!validateStep()) return
-    
-    setIsDeploying(true)
-    try {
-      const result = await deployLiquidity({
-        strategyType: form.strategyType!,
-        tokenA: form.tokenA!.symbol,
-        tokenB: form.tokenB!.symbol,
-        feeTier: form.feeTier,
-        chains: form.selectedChains,
-        amountA: parseFloat(form.amountA),
-        amountB: parseFloat(form.amountB),
-        priceRange: undefined,
-      })
-      setDeployResult({ success: true, txHash: result.txHash })
-    } catch {
-      setDeployResult({ success: false, error: 'Deployment failed. Please try again.' })
+    if (!form.tokenA || !form.tokenB || !form.strategyType) return
+
+    const selectedChain = form.selectedChains[0]
+    const chainId = BACKEND_CHAIN_IDS[selectedChain]
+    if (!chainId) return
+
+    // Resolve chain-specific token addresses
+    const addr0 = resolveAddress(form.tokenA.symbol, selectedChain) ?? form.tokenA.address
+    const addr1 = resolveAddress(form.tokenB.symbol, selectedChain) ?? form.tokenB.address
+
+    const isStableSwap = form.strategyType === 'stable-swap'
+
+    // Compute stableSwap-specific params
+    let linearWidth: string | undefined
+    let rate0: string | undefined
+    let rate1: string | undefined
+
+    if (isStableSwap) {
+      // Default A = 0.8 for the deploy page (modal has its own slider)
+      const aBigInt = 8n * (10n ** 26n) // 0.8e27
+      linearWidth = aBigInt.toString()
+
+      const { rateLt, rateGt } = calculateRates(
+        addr0 as Address, form.tokenA.decimals,
+        addr1 as Address, form.tokenB.decimals,
+      )
+      const isToken0Lt = addr0.toLowerCase() < addr1.toLowerCase()
+      rate0 = (isToken0Lt ? rateLt : rateGt).toString()
+      rate1 = (isToken0Lt ? rateGt : rateLt).toString()
     }
-    setIsDeploying(false)
+
+    await executeDeploy({
+      template: isStableSwap ? 'stableSwap' : 'constantProduct',
+      token0: addr0,
+      token1: addr1,
+      token0Decimals: form.tokenA.decimals,
+      token1Decimals: form.tokenB.decimals,
+      amount0: form.amountA,
+      amount1: form.amountB,
+      feeBps: Math.round(form.feeTier * 100),
+      chainId,
+      linearWidth,
+      rate0,
+      rate1,
+    })
   }
-
-  // Calculate estimated values
-  const totalValueUSD = (() => {
-    const amountA = parseFloat(form.amountA) || 0
-    const amountB = parseFloat(form.amountB) || 0
-    const priceA = form.tokenA ? tokenPrices[form.tokenA.symbol] || 1 : 0
-    const priceB = form.tokenB ? tokenPrices[form.tokenB.symbol] || 1 : 0
-    return amountA * priceA + amountB * priceB
-  })()
-
-  const estimatedAPY = form.strategyType === 'stable-swap' ? 8.2 : 18.7
-
-  const estimatedDailyEarnings = (totalValueUSD * estimatedAPY / 100) / 365
 
   if (isLoading) {
     return (
@@ -302,43 +245,49 @@ function DeployPageContent() {
     )
   }
 
-  // Success/Error state
-  if (deployResult) {
+  // Success state
+  if (deployStep === 'done' && deployResult) {
     return (
       <div className="container mx-auto max-w-lg px-4 py-8">
         <Card>
           <CardContent className="py-12 text-center">
-            {deployResult.success ? (
-              <>
-                <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-green-500" />
-                <h2 className="mb-2 text-2xl font-bold">Deployment Successful!</h2>
-                <p className="mb-4 text-muted-foreground">
-                  Your liquidity has been deployed successfully.
-                </p>
-                <p className="mb-6 font-mono text-sm text-muted-foreground">
-                  Tx: {deployResult.txHash}
-                </p>
-                <div className="flex justify-center gap-4">
-                  <Button variant="outline" onClick={() => router.push('/profile')}>
-                    View Position
-                  </Button>
-                  <Button onClick={() => router.push('/')}>
-                    Back to Strategies
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <XCircle className="mx-auto mb-4 h-16 w-16 text-destructive" />
-                <h2 className="mb-2 text-2xl font-bold">Deployment Failed</h2>
-                <p className="mb-6 text-muted-foreground">
-                  {deployResult.error}
-                </p>
-                <Button onClick={() => setDeployResult(null)}>
-                  Try Again
-                </Button>
-              </>
-            )}
+            <CheckCircle2 className="mx-auto mb-4 h-16 w-16 text-green-500" />
+            <h2 className="mb-2 text-2xl font-bold">Strategy Deployed!</h2>
+            <p className="mb-4 text-muted-foreground">
+              Your strategy has been deployed successfully.
+            </p>
+            <div className="mb-6 space-y-1 font-mono text-sm text-muted-foreground">
+              <p>Tx: {deployResult.txHash}</p>
+              <p>Strategy: {deployResult.strategyHash}</p>
+            </div>
+            <div className="flex justify-center gap-4">
+              <Button variant="outline" onClick={() => router.push('/profile')}>
+                View Position
+              </Button>
+              <Button onClick={() => router.push('/')}>
+                Back to Strategies
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Error state
+  if (deployStep === 'error') {
+    return (
+      <div className="container mx-auto max-w-lg px-4 py-8">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <XCircle className="mx-auto mb-4 h-16 w-16 text-destructive" />
+            <h2 className="mb-2 text-2xl font-bold">Deployment Failed</h2>
+            <p className="mb-6 text-muted-foreground">
+              {deployError || 'Something went wrong. Please try again.'}
+            </p>
+            <Button onClick={() => resetDeploy()}>
+              Try Again
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -468,17 +417,14 @@ function DeployPageContent() {
                     key={token.symbol}
                     onClick={() => setForm(prev => ({ ...prev, tokenA: token }))}
                     className={`flex items-center gap-2 rounded-lg border p-3 transition-colors ${
-                      form.tokenA?.symbol === token.symbol 
-                        ? 'border-primary bg-primary/10' 
+                      form.tokenA?.symbol === token.symbol
+                        ? 'border-primary bg-primary/10'
                         : 'hover:border-primary/50'
                     }`}
                   >
                     <TokenIcon token={token} size="sm" />
                     <div className="text-left">
                       <p className="text-sm font-medium">{token.symbol}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Balance: {balances[token.symbol]?.toFixed(4) || '0'}
-                      </p>
                     </div>
                   </button>
                 ))}
@@ -492,17 +438,14 @@ function DeployPageContent() {
                     key={token.symbol}
                     onClick={() => setForm(prev => ({ ...prev, tokenB: token }))}
                     className={`flex items-center gap-2 rounded-lg border p-3 transition-colors ${
-                      form.tokenB?.symbol === token.symbol 
-                        ? 'border-primary bg-primary/10' 
+                      form.tokenB?.symbol === token.symbol
+                        ? 'border-primary bg-primary/10'
                         : 'hover:border-primary/50'
                     }`}
                   >
                     <TokenIcon token={token} size="sm" />
                     <div className="text-left">
                       <p className="text-sm font-medium">{token.symbol}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Balance: {balances[token.symbol]?.toFixed(4) || '0'}
-                      </p>
                     </div>
                   </button>
                 ))}
@@ -544,12 +487,6 @@ function DeployPageContent() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Selected Pair</span>
                   <span className="font-medium">{form.tokenA.symbol}/{form.tokenB.symbol}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Current Price</span>
-                  <span className="font-medium">
-                    1 {form.tokenA.symbol} = {currentPrice.toFixed(4)} {form.tokenB.symbol}
-                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -632,55 +569,23 @@ function DeployPageContent() {
         <div className="space-y-6">
           <h2 className="text-lg font-semibold">Enter Liquidity Amount</h2>
           <p className="text-sm text-muted-foreground">
-            Enter an amount for either token - the other will be calculated automatically based on current price.
+            Enter the amount of each token to deposit into your strategy.
           </p>
-
-          {/* Current Price Info */}
-          {form.tokenA && form.tokenB && (
-            <Card className="bg-muted/50">
-              <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">Current Price</p>
-                <p className="text-lg font-semibold">
-                  1 {form.tokenA.symbol} = {currentPrice.toFixed(currentPrice < 10 ? 4 : 2)} {form.tokenB.symbol}
-                </p>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Token A Input */}
           <Card>
             <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {form.tokenA && <TokenIcon token={form.tokenA} size="sm" />}
-                  <Label className="text-base font-semibold">{form.tokenA?.symbol || 'Token A'}</Label>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  Balance: {form.tokenA ? balances[form.tokenA.symbol]?.toFixed(4) || '0' : '0'}
-                </span>
+              <div className="flex items-center gap-2">
+                {form.tokenA && <TokenIcon token={form.tokenA} size="sm" />}
+                <Label className="text-base font-semibold">{form.tokenA?.symbol || 'Token A'}</Label>
               </div>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={form.amountA}
-                  onChange={(e) => handleAmountAChange(e.target.value)}
-                  className="pr-20 text-xl h-14 font-mono"
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="absolute right-2 top-1/2 h-8 -translate-y-1/2"
-                  onClick={handleMaxA}
-                >
-                  MAX
-                </Button>
-              </div>
-              {form.amountA && form.tokenA && (
-                <p className="text-sm text-muted-foreground">
-                  {formatCurrency(parseFloat(form.amountA) * (tokenPrices[form.tokenA.symbol] || 1))}
-                </p>
-              )}
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={form.amountA}
+                onChange={(e) => handleAmountAChange(e.target.value)}
+                className="text-xl h-14 font-mono"
+              />
             </CardContent>
           </Card>
 
@@ -694,76 +599,19 @@ function DeployPageContent() {
           {/* Token B Input */}
           <Card>
             <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {form.tokenB && <TokenIcon token={form.tokenB} size="sm" />}
-                  <Label className="text-base font-semibold">{form.tokenB?.symbol || 'Token B'}</Label>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  Balance: {form.tokenB ? balances[form.tokenB.symbol]?.toFixed(4) || '0' : '0'}
-                </span>
+              <div className="flex items-center gap-2">
+                {form.tokenB && <TokenIcon token={form.tokenB} size="sm" />}
+                <Label className="text-base font-semibold">{form.tokenB?.symbol || 'Token B'}</Label>
               </div>
-              <div className="relative">
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={form.amountB}
-                  onChange={(e) => handleAmountBChange(e.target.value)}
-                  className="pr-20 text-xl h-14 font-mono"
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="absolute right-2 top-1/2 h-8 -translate-y-1/2"
-                  onClick={handleMaxB}
-                >
-                  MAX
-                </Button>
-              </div>
-              {form.amountB && form.tokenB && (
-                <p className="text-sm text-muted-foreground">
-                  {formatCurrency(parseFloat(form.amountB) * (tokenPrices[form.tokenB.symbol] || 1))}
-                </p>
-              )}
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={form.amountB}
+                onChange={(e) => handleAmountBChange(e.target.value)}
+                className="text-xl h-14 font-mono"
+              />
             </CardContent>
           </Card>
-
-          {/* Position Summary */}
-          {totalValueUSD > 0 && (
-            <Card className="bg-primary/5">
-              <CardContent className="space-y-3 p-4">
-                <h3 className="font-semibold">Position Summary</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Value</p>
-                    <p className="text-xl font-bold">{formatCurrency(totalValueUSD)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Estimated APY</p>
-                    <p className="text-xl font-bold text-primary">{estimatedAPY}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Daily Earnings</p>
-                    <p className="font-medium">{formatCurrency(estimatedDailyEarnings)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Pool Share</p>
-                    <p className="font-medium">{(totalValueUSD / 12500000 * 100).toFixed(4)}%</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Warnings */}
-          {totalValueUSD > 0 && totalValueUSD < 100 && (
-            <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4">
-              <AlertTriangle className="mt-0.5 h-4 w-4 text-yellow-500" />
-              <p className="text-sm text-yellow-500">
-                Small position size. You may not earn meaningful fees.
-              </p>
-            </div>
-          )}
         </div>
       )}
 
@@ -822,58 +670,6 @@ function DeployPageContent() {
             </CardContent>
           </Card>
 
-          {/* Cost Breakdown */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Cost Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Total Deposit</span>
-                <span className="font-medium">{formatCurrency(totalValueUSD)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Estimated Gas</span>
-                <span className="font-medium">
-                  ${form.selectedChains.reduce((acc, chainId) => {
-                    const gas = chainId === 'base' ? 0.5 : 0.3
-                    return acc + gas
-                  }, 0).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-t pt-3">
-                <span className="font-semibold">Total Cost</span>
-                <span className="font-bold">
-                  {formatCurrency(totalValueUSD + form.selectedChains.reduce((acc, chainId) => {
-                    const gas = chainId === 'base' ? 0.5 : 0.3
-                    return acc + gas
-                  }, 0))}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Estimated Returns */}
-          <Card className="bg-primary/5">
-            <CardHeader>
-              <CardTitle>Estimated Returns</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Daily Earnings</span>
-                <span className="font-medium text-primary">{formatCurrency(estimatedDailyEarnings)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Monthly Earnings</span>
-                <span className="font-medium text-primary">{formatCurrency(estimatedDailyEarnings * 30)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Projected APY</span>
-                <span className="font-bold text-primary">{estimatedAPY}%</span>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Risk Warnings */}
           <Card className="border-yellow-500/30 bg-yellow-500/5">
             <CardHeader>
@@ -895,31 +691,47 @@ function DeployPageContent() {
         </div>
       )}
 
+      {/* Deploy Progress */}
+      {isDeploying && (
+        <Card className="mt-6 border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center gap-3 p-4">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="font-medium">{DEPLOY_STEP_LABELS[deployStep]}</span>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Navigation Buttons */}
       <div className="mt-8 flex justify-between">
         <Button
           variant="outline"
           onClick={handleBack}
-          disabled={step === 1}
+          disabled={step === 1 || isDeploying}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        
+
         {step === 5 ? (
-          <Button onClick={handleDeploy} disabled={isDeploying} className="min-w-[140px]">
-            {isDeploying ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deploying...
-              </>
-            ) : (
-              <>
-                Deploy Liquidity
-                <Check className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
+          !isConnected ? (
+            <Button onClick={() => { /* wallet connect handled by provider */ }} disabled className="min-w-[140px]">
+              Connect Wallet
+            </Button>
+          ) : (
+            <Button onClick={handleDeploy} disabled={isDeploying} className="min-w-[140px]">
+              {isDeploying ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {DEPLOY_STEP_LABELS[deployStep] || 'Deploying...'}
+                </>
+              ) : (
+                <>
+                  Deploy Strategy
+                  <Check className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )
         ) : (
           <Button onClick={handleNext}>
             Next
