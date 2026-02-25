@@ -25,7 +25,7 @@ export function buildTakerData(threshold: bigint = BigInt(0)): `0x${string}` {
   return `0x${thresholdHex}${flagsHex}`
 }
 
-// Minimal ERC20 ABI for approve + allowance checks
+// Minimal ERC20 ABI for approve + allowance + transfer
 export const ERC20_ABI = [
   {
     name: 'approve',
@@ -46,5 +46,46 @@ export const ERC20_ABI = [
       { name: 'spender', type: 'address' },
     ],
     outputs: [{ type: 'uint256' }],
+  },
+  {
+    name: 'transfer',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ type: 'bool' }],
+  },
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+] as const
+
+// LP Account Factory — same address on all supported chains (deployed via CreateX)
+export const ACCOUNT_FACTORY: Address = '0xfA4FCDF96866bD1ACCB6e70Aa426644E953E76b0'
+
+// Minimal AccountFactory ABI for checking/creating LP Accounts
+export const ACCOUNT_FACTORY_ABI = [
+  {
+    name: 'getAccount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'salt', type: 'bytes32' },
+    ],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    name: 'isAccount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ type: 'bool' }],
   },
 ] as const

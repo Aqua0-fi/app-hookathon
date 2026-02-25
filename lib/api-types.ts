@@ -260,3 +260,50 @@ export interface SwapPrepareResponse {
     data: string  // encoded calldata hex
   }
 }
+
+// POST /api/v1/strategies/build — request body
+export interface StrategyBuildRequest {
+  template: 'constantProduct' | 'stableSwap'
+  maker: string          // LP Account address
+  token0: string         // token address
+  token1: string         // token address
+  balance0: string       // uint256 decimal string
+  balance1: string       // uint256 decimal string
+  feeBps: number         // fee in basis points (e.g. 30 = 0.3%)
+  linearWidth?: string   // stableSwap only — A parameter scaled by 1e27
+  rate0?: string         // stableSwap only — decimal normalization
+  rate1?: string         // stableSwap only — decimal normalization
+}
+
+// POST /api/v1/strategies/build — response
+export interface StrategyBuildResponse {
+  program: string            // "0x..." SwapVM bytecode hex
+  order: {
+    maker: string            // LP Account address
+    traits: string           // uint256 decimal string (includes USE_AQUA_BIT)
+    data: string             // "0x..." program bytecode
+  }
+  strategyBytes: string      // "0x..." abi.encode(order)
+  strategyHash: string       // "0x..." keccak256(strategyBytes)
+  tokens: string[]           // token addresses
+  amounts: string[]          // uint256 decimal strings
+  takerData: string          // "0x..." threshold + flags
+}
+
+// POST /api/v1/lp/accounts/prepare-create — response
+// POST /api/v1/lp/accounts/:address/prepare-approve — response
+export interface PrepareCalldataResponse {
+  calldata: {
+    to: string    // contract address to call
+    data: string  // encoded calldata hex
+  }
+}
+
+// POST /api/v1/lp/accounts/:address/prepare-ship — response
+export interface PrepareShipResponse {
+  calldata: {
+    to: string
+    data: string
+  }
+  strategyHash: string   // "0x..." bytes32
+}
