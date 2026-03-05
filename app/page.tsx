@@ -22,6 +22,60 @@ import { useToast } from '@/hooks/use-toast'
 import { Suspense } from 'react'
 import Loading from './loading'
 import { useWallet } from '@/contexts/wallet-context'
+import type { Strategy } from '@/lib/types'
+
+// ── Demo strategies (temporary, do not push) ──────────────────────
+const DEMO_STRATEGIES: Strategy[] = [
+  {
+    id: 'demo-yudhish',
+    name: 'Yudhish',
+    type: 'constant-product',
+    tokenPair: [
+      { symbol: 'ETH', name: 'Ethereum', logo: '/crypto/ETH.png', decimals: 18, address: '0x0' },
+      { symbol: 'USDC', name: 'USD Coin', logo: '/crypto/USDC.png', decimals: 6, address: '0x0' },
+    ],
+    apy: 12.4,
+    tvl: 3_200_000,
+    riskLevel: 'medium',
+    supportedChains: [{ id: 'base', name: 'Base', logo: '/crypto/Base.png', color: '#0052FF' }],
+    feeTier: 0.3,
+    createdAt: '2026-02-20',
+  },
+  {
+    id: 'demo-rithik',
+    name: 'Rithik',
+    type: 'stable-swap',
+    tokenPair: [
+      { symbol: 'USDC', name: 'USD Coin', logo: '/crypto/USDC.png', decimals: 6, address: '0x0' },
+      { symbol: 'USDT', name: 'Tether', logo: '/crypto/USDT.png', decimals: 6, address: '0x0' },
+    ],
+    apy: 5.8,
+    tvl: 18_500_000,
+    riskLevel: 'low',
+    supportedChains: [{ id: 'unichain', name: 'Unichain', logo: '/crypto/Unichain.png', color: '#FF007A' }],
+    feeTier: 0.01,
+    createdAt: '2026-02-18',
+  },
+  {
+    id: 'demo-tomas',
+    name: 'Tomas',
+    type: 'constant-product',
+    tokenPair: [
+      { symbol: 'WBTC', name: 'Wrapped Bitcoin', logo: '/crypto/BTC.png', decimals: 8, address: '0x0' },
+      { symbol: 'ETH', name: 'Ethereum', logo: '/crypto/ETH.png', decimals: 18, address: '0x0' },
+    ],
+    apy: 8.1,
+    tvl: 7_400_000,
+    riskLevel: 'high',
+    supportedChains: [
+      { id: 'base', name: 'Base', logo: '/crypto/Base.png', color: '#0052FF' },
+      { id: 'unichain', name: 'Unichain', logo: '/crypto/Unichain.png', color: '#FF007A' },
+    ],
+    feeTier: 0.3,
+    createdAt: '2026-02-15',
+  },
+]
+// ── End demo strategies ───────────────────────────────────────────
 
 export default function StrategiesPage() {
   const { isConnected, connect } = useWallet()
@@ -52,7 +106,9 @@ export default function StrategiesPage() {
     }
   }
 
-  const filteredStrategies = (strategies ?? []).filter((strategy) => {
+  const allStrategies = [...DEMO_STRATEGIES, ...(strategies ?? [])]
+
+  const filteredStrategies = allStrategies.filter((strategy) => {
     const matchesSearch = strategy.name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesChain = chainFilter === 'all' || strategy.supportedChains.some(c => c.id === chainFilter)
     const matchesType = typeFilter === 'all' || strategy.type === typeFilter

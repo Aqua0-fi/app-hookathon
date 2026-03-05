@@ -59,6 +59,9 @@ export function StrategyCard({ strategy }: StrategyCardProps) {
           <div className="flex items-center gap-3">
             <TokenPairIcon tokens={strategy.tokenPair} size="lg" />
             <div>
+              {strategy.name !== `${strategy.tokenPair[0].symbol}/${strategy.tokenPair[1].symbol}` && (
+                <p className="text-xs font-medium text-muted-foreground">{strategy.name}</p>
+              )}
               <h3 className="text-base font-semibold">
                 {strategy.tokenPair[0].symbol}/{strategy.tokenPair[1].symbol}
               </h3>
