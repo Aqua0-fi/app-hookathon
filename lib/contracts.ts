@@ -1,7 +1,7 @@
 import type { Address } from 'viem'
 
-// SwapVMRouter — same address on all supported chains
-export const SWAP_VM_ROUTER: Address = '0x8fDD04Dbf6111437B44bbca99C28882434e0958f'
+// SwapVMRouter / V4 PoolSwapTest Router
+export const SWAP_VM_ROUTER: Address = '0xB9818483D01ca0e721849703C58148CFb81328fC'
 
 // USE_AQUA_BIT flag (1 << 254) — required in order.traits for the router
 // Pre-computed: (1n << 254n).toString()
@@ -11,6 +11,7 @@ export const USE_AQUA_BIT = '289480223093290488558927462521719769633174961664101
 export const BACKEND_CHAIN_IDS: Record<string, number> = {
   base: 8453,
   unichain: 130,
+  local: 696969,
 }
 
 /**
@@ -88,4 +89,44 @@ export const ACCOUNT_FACTORY_ABI = [
     inputs: [{ name: 'account', type: 'address' }],
     outputs: [{ type: 'bool' }],
   },
+] as const
+
+export const V4_ROUTER_ABI = [
+  {
+    "type": "function",
+    "name": "swap",
+    "inputs": [
+      {
+        "name": "key",
+        "type": "tuple",
+        "components": [
+          { "name": "currency0", "type": "address" },
+          { "name": "currency1", "type": "address" },
+          { "name": "fee", "type": "uint24" },
+          { "name": "tickSpacing", "type": "int24" },
+          { "name": "hooks", "type": "address" }
+        ]
+      },
+      {
+        "name": "params",
+        "type": "tuple",
+        "components": [
+          { "name": "zeroForOne", "type": "bool" },
+          { "name": "amountSpecified", "type": "int256" },
+          { "name": "sqrtPriceLimitX96", "type": "uint160" }
+        ]
+      },
+      {
+        "name": "testSettings",
+        "type": "tuple",
+        "components": [
+          { "name": "takeClaims", "type": "bool" },
+          { "name": "settleUsingBurn", "type": "bool" }
+        ]
+      },
+      { "name": "hookData", "type": "bytes" }
+    ],
+    "outputs": [{ "name": "delta", "type": "int256" }],
+    "stateMutability": "payable"
+  }
 ] as const

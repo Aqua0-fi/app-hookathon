@@ -150,7 +150,7 @@ function DeployPageContent() {
   // Validate current step
   const validateStep = (): boolean => {
     const errors: string[] = []
-    
+
     switch (step) {
       case 1:
         if (!form.strategyType) errors.push('Please select a strategy type')
@@ -172,7 +172,7 @@ function DeployPageContent() {
         }
         break
     }
-    
+
     setValidationErrors(errors)
     return errors.length === 0
   }
@@ -209,7 +209,7 @@ function DeployPageContent() {
 
     if (isStableSwap) {
       // Default A = 0.8 for the deploy page (modal has its own slider)
-      const aBigInt = 8n * (10n ** 26n) // 0.8e27
+      const aBigInt = BigInt("800000000000000000000000000") // 0.8e27
       linearWidth = aBigInt.toString()
 
       const { rateLt, rateGt } = calculateRates(
@@ -298,8 +298,8 @@ function DeployPageContent() {
     <div className="container mx-auto max-w-3xl px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="mb-4 inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -314,14 +314,13 @@ function DeployPageContent() {
         <div className="flex items-center justify-between">
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s) => (
             <div key={s} className="flex items-center">
-              <div 
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                  s < step 
-                    ? 'bg-primary text-primary-foreground' 
-                    : s === step 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'bg-muted text-muted-foreground'
-                }`}
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${s < step
+                    ? 'bg-primary text-primary-foreground'
+                    : s === step
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
               >
                 {s < step ? <Check className="h-4 w-4" /> : s}
               </div>
@@ -360,13 +359,12 @@ function DeployPageContent() {
           <h2 className="text-lg font-semibold">Select Strategy Type</h2>
           <div className="grid gap-4">
             {strategyTypeInfo.map((info) => (
-              <Card 
+              <Card
                 key={info.type}
-                className={`cursor-pointer transition-all ${
-                  form.strategyType === info.type 
-                    ? 'border-primary ring-2 ring-primary/20' 
+                className={`cursor-pointer transition-all ${form.strategyType === info.type
+                    ? 'border-primary ring-2 ring-primary/20'
                     : 'hover:border-primary/50'
-                }`}
+                  }`}
                 onClick={() => setForm(prev => ({ ...prev, strategyType: info.type }))}
               >
                 <CardContent className="p-6">
@@ -385,11 +383,10 @@ function DeployPageContent() {
                         ))}
                       </div>
                     </div>
-                    <div className={`h-5 w-5 rounded-full border-2 ${
-                      form.strategyType === info.type 
-                        ? 'border-primary bg-primary' 
+                    <div className={`h-5 w-5 rounded-full border-2 ${form.strategyType === info.type
+                        ? 'border-primary bg-primary'
                         : 'border-muted'
-                    }`}>
+                      }`}>
                       {form.strategyType === info.type && (
                         <Check className="h-full w-full p-0.5 text-primary-foreground" />
                       )}
@@ -406,7 +403,7 @@ function DeployPageContent() {
       {step === 2 && (
         <div className="space-y-6">
           <h2 className="text-lg font-semibold">Token Pair & Fee Configuration</h2>
-          
+
           {/* Token Selection */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -416,11 +413,10 @@ function DeployPageContent() {
                   <button
                     key={token.symbol}
                     onClick={() => setForm(prev => ({ ...prev, tokenA: token }))}
-                    className={`flex items-center gap-2 rounded-lg border p-3 transition-colors ${
-                      form.tokenA?.symbol === token.symbol
+                    className={`flex items-center gap-2 rounded-lg border p-3 transition-colors ${form.tokenA?.symbol === token.symbol
                         ? 'border-primary bg-primary/10'
                         : 'hover:border-primary/50'
-                    }`}
+                      }`}
                   >
                     <TokenIcon token={token} size="sm" />
                     <div className="text-left">
@@ -437,11 +433,10 @@ function DeployPageContent() {
                   <button
                     key={token.symbol}
                     onClick={() => setForm(prev => ({ ...prev, tokenB: token }))}
-                    className={`flex items-center gap-2 rounded-lg border p-3 transition-colors ${
-                      form.tokenB?.symbol === token.symbol
+                    className={`flex items-center gap-2 rounded-lg border p-3 transition-colors ${form.tokenB?.symbol === token.symbol
                         ? 'border-primary bg-primary/10'
                         : 'hover:border-primary/50'
-                    }`}
+                      }`}
                   >
                     <TokenIcon token={token} size="sm" />
                     <div className="text-left">
@@ -456,17 +451,17 @@ function DeployPageContent() {
           {/* Fee Tier */}
           <div className="space-y-3">
             <Label>Fee Tier</Label>
-            <RadioGroup 
-              value={String(form.feeTier)} 
+            <RadioGroup
+              value={String(form.feeTier)}
               onValueChange={(v) => setForm(prev => ({ ...prev, feeTier: parseFloat(v) }))}
               className="grid grid-cols-2 gap-4 md:grid-cols-4"
             >
               {feeTiers.map((tier) => (
                 <div key={tier.value}>
-                  <RadioGroupItem 
-                    value={String(tier.value)} 
-                    id={`fee-${tier.value}`} 
-                    className="peer sr-only" 
+                  <RadioGroupItem
+                    value={String(tier.value)}
+                    id={`fee-${tier.value}`}
+                    className="peer sr-only"
                   />
                   <Label
                     htmlFor={`fee-${tier.value}`}
@@ -501,18 +496,17 @@ function DeployPageContent() {
           <p className="text-sm text-muted-foreground">
             Choose where to deploy your liquidity
           </p>
-          
+
           <div className="grid gap-4 md:grid-cols-3">
             {chains.map((chain) => {
               const isSelected = form.selectedChains.includes(chain.id)
               const gasEstimate = chain.id === 'base' ? 0.5 : 0.3
-              
+
               return (
-                <Card 
+                <Card
                   key={chain.id}
-                  className={`cursor-pointer transition-all ${
-                    isSelected ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/50'
-                  }`}
+                  className={`cursor-pointer transition-all ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/50'
+                    }`}
                   onClick={() => {
                     setForm(prev => ({
                       ...prev,
@@ -525,7 +519,7 @@ function DeployPageContent() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div 
+                        <div
                           className="flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold text-white"
                           style={{ backgroundColor: chain.color }}
                         >
@@ -619,7 +613,7 @@ function DeployPageContent() {
       {step === 5 && (
         <div className="space-y-6">
           <h2 className="text-lg font-semibold">Review & Confirm</h2>
-          
+
           {/* Summary Card */}
           <Card>
             <CardHeader>
@@ -648,7 +642,7 @@ function DeployPageContent() {
                   {form.selectedChains.map(chainId => {
                     const chain = chains.find(c => c.id === chainId)
                     return chain ? (
-                      <span 
+                      <span
                         key={chainId}
                         className="rounded-full px-2 py-1 text-xs font-medium text-white"
                         style={{ backgroundColor: chain.color }}

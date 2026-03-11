@@ -27,9 +27,9 @@ function truncateAddress(address: string): string {
 }
 
 const navLinks = [
-  { href: '/', label: 'Strategies' },
+  { href: '/', label: 'Pools' },
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/swap', label: 'Swap' },
-  { href: '/profile', label: 'Profile' },
 ]
 
 export function Navbar() {
@@ -46,8 +46,8 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <Image
-            src="/aqua0-logo.png"
-            alt="AQUA0"
+            src="/aqua0.png"
+            alt="Aqua0 Logo"
             width={32}
             height={32}
             className="h-8 w-8"
@@ -62,11 +62,10 @@ export function Navbar() {
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                pathname === link.href
-                  ? 'bg-secondary text-foreground'
-                  : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-              }`}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${pathname === link.href
+                ? 'bg-secondary text-foreground'
+                : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                }`}
             >
               {link.label}
             </Link>
@@ -112,9 +111,8 @@ export function Navbar() {
                           switchChain({ chainId: chain.id })
                           setChainDropdownOpen(false)
                         }}
-                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary ${
-                          chainId === chain.id ? 'bg-secondary/50 font-medium' : 'text-muted-foreground'
-                        }`}
+                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary ${chainId === chain.id ? 'bg-secondary/50 font-medium' : 'text-muted-foreground'
+                          }`}
                       >
                         {chainIcons[chain.id] && (
                           <Image
@@ -165,11 +163,10 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-                  pathname === link.href
-                    ? 'bg-secondary text-foreground'
-                    : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
-                }`}
+                className={`rounded-lg px-4 py-3 text-sm font-medium transition-colors ${pathname === link.href
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+                  }`}
               >
                 {link.label}
               </Link>

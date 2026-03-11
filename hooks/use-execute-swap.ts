@@ -1,31 +1,26 @@
 import { useState, useCallback } from 'react'
 import { parseUnits } from 'viem'
 import type { Address } from 'viem'
-import { useWriteContract, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi'
-import { api } from '@/lib/api-client'
-import { SWAP_VM_ROUTER, USE_AQUA_BIT, ERC20_ABI, buildTakerData } from '@/lib/contracts'
-import type { SwapOrderRequest, SwapPrepareResponse } from '@/lib/api-types'
-import type { ApiStrategyDetail } from '@/lib/api-types'
+import { useWriteContract, useWaitForTransactionReceipt, useAccount } from 'wagmi'
+import { SWAP_VM_ROUTER, V4_ROUTER_ABI, ERC20_ABI } from '@/lib/contracts'
+import { useSwapRouter } from './use-swap-router'
+import type { V4Pool } from '@/lib/v4-api'
 
 export type SwapStep =
   | 'idle'
-  | 'checking-allowance'
   | 'approving'
-  | 'preparing'
   | 'swapping'
   | 'confirming'
   | 'done'
   | 'error'
 
 interface ExecuteSwapParams {
-  strategy: ApiStrategyDetail
+  pool: V4Pool
   tokenIn: string
   tokenOut: string
   amountIn: string       // human-readable
   decimalsIn: number
-  chainId: number
   slippageBps: number    // e.g. 50 = 0.5%
-  amountOutRaw: string   // from quote, for threshold
 }
 
 export function useExecuteSwap(owner?: string) {
@@ -33,8 +28,11 @@ export function useExecuteSwap(owner?: string) {
   const [error, setError] = useState<string | null>(null)
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
 
+  const { chainId } = useAccount()
+  const { data: routeAddress } = useSwapRouter(chainId)
+  const routerTarget = routeAddress || SWAP_VM_ROUTER
+
   const { writeContractAsync } = useWriteContract()
-  const { sendTransactionAsync } = useSendTransaction()
   const { data: receipt, isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: txHash,
   })
@@ -45,68 +43,70 @@ export function useExecuteSwap(owner?: string) {
   }
 
   const execute = useCallback(async (params: ExecuteSwapParams) => {
-    const {
-      strategy, tokenIn, tokenOut, amountIn,
-      decimalsIn, chainId, slippageBps, amountOutRaw,
-    } = params
-
+    const { pool, tokenIn, amountIn, decimalsIn } = params
     setError(null)
     setTxHash(undefined)
 
     try {
       const amountInRaw = parseUnits(amountIn, decimalsIn)
+      const zeroForOne = tokenIn.toLowerCase() === pool.token0.address.toLowerCase()
+      const isNativeToken = tokenIn === "0x0000000000000000000000000000000000000000"
 
-      // 1. Approve ERC20 spend (idempotent — safe to call every time, negligible gas on L2)
-      setStep('approving')
-      await writeContractAsync({
-        address: tokenIn as Address,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [SWAP_VM_ROUTER, amountInRaw],
-      })
-
-      // 2. Prepare calldata via backend
-      setStep('preparing')
-
-      // Calculate threshold with slippage: amountOut * (1 - slippage/10000)
-      const amountOutBig = BigInt(amountOutRaw)
-      const threshold = amountOutBig - (amountOutBig * BigInt(slippageBps)) / BigInt(10000)
-
-      const body: SwapOrderRequest = {
-        order: {
-          maker: strategy.app,
-          traits: USE_AQUA_BIT,
-          data: strategy.bytecode,
-        },
-        tokenIn,
-        tokenOut,
-        amountIn: amountInRaw.toString(),
-        takerData: buildTakerData(threshold),
+      if (!isNativeToken) {
+        // 1. Approve ERC20 spend
+        setStep('approving')
+        // Note: In production we'd check allowance first to save gas and clicks
+        await writeContractAsync({
+          address: tokenIn as Address,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [routerTarget, amountInRaw],
+        })
       }
 
-      const { calldata } = await api.post<SwapPrepareResponse>(
-        'swaps/prepare',
-        body,
-        { chainId: String(chainId) },
-      )
-
-      // 3. Send transaction
+      // 2. Execute V4 Swap
       setStep('swapping')
-      const hash = await sendTransactionAsync({
-        to: calldata.to as Address,
-        data: calldata.data as `0x${string}`,
+      const hash = await writeContractAsync({
+        address: routerTarget,
+        abi: V4_ROUTER_ABI,
+        functionName: 'swap',
+        ...(isNativeToken ? { value: amountInRaw } : {}),
+        args: [
+          // key
+          {
+            currency0: pool.token0.address as Address,
+            currency1: pool.token1.address as Address,
+            fee: pool.fee,
+            tickSpacing: pool.tickSpacing,
+            hooks: pool.poolKey.hooks as Address,
+          },
+          // params
+          {
+            zeroForOne,
+            amountSpecified: -amountInRaw, // negative = exact input
+            sqrtPriceLimitX96: zeroForOne
+              ? BigInt("4295128740")
+              : BigInt("1461446703485210103287273052203988822378723970341")
+          },
+          // testSettings
+          {
+            takeClaims: false,
+            settleUsingBurn: false,
+          },
+          // hookData
+          '0x'
+        ]
       })
 
-      // 4. Wait for confirmation
+      // 3. Wait for confirmation
       setStep('confirming')
       setTxHash(hash)
-      // Receipt will be picked up by useWaitForTransactionReceipt above
 
     } catch (err) {
       setStep('error')
       setError(err instanceof Error ? err.message : 'Swap failed')
     }
-  }, [owner, writeContractAsync, sendTransactionAsync])
+  }, [owner, writeContractAsync, routerTarget])
 
   const reset = useCallback(() => {
     setStep('idle')

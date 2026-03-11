@@ -152,7 +152,7 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
 
     if (isStableSwap) {
       // linearWidth = A parameter * 1e27
-      const aBigInt = BigInt(Math.round(aParameter * 10)) * (10n ** 26n) // e.g. 0.8 → 8 * 1e26 = 8e26
+      const aBigInt = BigInt(Math.round(aParameter * 10)) * BigInt("100000000000000000000000000") // e.g. 0.8 → 8 * 1e26 = 8e26
       linearWidth = aBigInt.toString()
 
       // Compute decimal normalization rates
@@ -205,275 +205,270 @@ export function CreateStrategyModal({ open, onOpenChange, onSubmit }: CreateStra
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pr-2">
-        {/* Progress Steps */}
-        <div className="mb-6 flex items-center justify-between">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-                  currentStep > step.id
-                    ? 'bg-primary text-primary-foreground'
-                    : currentStep === step.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {currentStep > step.id ? <Check className="h-4 w-4" /> : step.id}
-              </div>
-              {index < steps.length - 1 && (
+          {/* Progress Steps */}
+          <div className="mb-6 flex items-center justify-between">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center">
                 <div
-                  className={`mx-2 h-0.5 w-6 ${
-                    currentStep > step.id ? 'bg-primary' : 'bg-muted'
-                  }`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${currentStep > step.id
+                      ? 'bg-primary text-primary-foreground'
+                      : currentStep === step.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                >
+                  {currentStep > step.id ? <Check className="h-4 w-4" /> : step.id}
+                </div>
+                {index < steps.length - 1 && (
+                  <div
+                    className={`mx-2 h-0.5 w-6 ${currentStep > step.id ? 'bg-primary' : 'bg-muted'
+                      }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <p className="mb-4 text-sm text-muted-foreground">
+            Step {currentStep}: {steps[currentStep - 1].title}
+          </p>
+
+          {/* Step 1: Strategy Type */}
+          {currentStep === 1 && (
+            <div className="space-y-3">
+              {strategyTypes.map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => {
+                    const newTokenPair: [string, string] = type.value === 'stable-swap'
+                      ? ['USDC', 'DAI']
+                      : ['ETH', 'USDC']
+                    setForm({ ...form, type: type.value, tokenPair: newTokenPair })
+                    setAmountA('')
+                    setAmountB('')
+                  }}
+                  className={`w-full rounded-lg border p-4 text-left transition-colors ${form.type === type.value
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                    }`}
+                >
+                  <p className="font-medium">{type.label}</p>
+                  <p className="text-sm text-muted-foreground">{type.description}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Step 2: Configuration */}
+          {currentStep === 2 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Token A</Label>
+                  <Select
+                    value={form.tokenPair[0]}
+                    onValueChange={(v) => setForm({ ...form, tokenPair: [v, form.tokenPair[1]] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTokens.map((token) => (
+                        <SelectItem key={token.symbol} value={token.symbol}>
+                          {token.symbol}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Token B</Label>
+                  <Select
+                    value={form.tokenPair[1]}
+                    onValueChange={(v) => setForm({ ...form, tokenPair: [form.tokenPair[0], v] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTokens.map((token) => (
+                        <SelectItem key={token.symbol} value={token.symbol}>
+                          {token.symbol}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Fee Tier</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {feeTiers.map((tier) => (
+                    <button
+                      key={tier}
+                      type="button"
+                      onClick={() => setForm({ ...form, feeTier: tier })}
+                      className={`rounded-lg border p-2 text-sm transition-colors ${form.feeTier === tier
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'
+                        }`}
+                    >
+                      {tier}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* Step 3: Select Chains */}
+          {currentStep === 3 && (
+            <div className="space-y-3">
+              {chains.map((chain) => (
+                <label
+                  key={chain.id}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${form.chains.includes(chain.id)
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border hover:border-primary/50'
+                    }`}
+                >
+                  <Checkbox
+                    checked={form.chains.includes(chain.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setForm({ ...form, chains: [...form.chains, chain.id] })
+                      } else {
+                        setForm({ ...form, chains: form.chains.filter((c) => c !== chain.id) })
+                      }
+                    }}
+                  />
+                  <ChainIcon chain={chain} size="md" showTooltip={false} />
+                  <span className="font-medium">{chain.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {/* Step 4: Initial Liquidity */}
+          {currentStep === 4 && (
+            <div className="space-y-4">
+              {/* Token A Input */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  {tokenA && <TokenIcon token={tokenA} size="sm" />}
+                  <Label className="font-semibold">{form.tokenPair[0]}</Label>
+                </div>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={amountA}
+                  onChange={(e) => handleAmountAChange(e.target.value)}
+                  className="text-lg font-mono"
                 />
+              </div>
+
+              {/* Plus indicator */}
+              <div className="flex items-center justify-center">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                  +
+                </div>
+              </div>
+
+              {/* Token B Input */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  {tokenB && <TokenIcon token={tokenB} size="sm" />}
+                  <Label className="font-semibold">{form.tokenPair[1]}</Label>
+                </div>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={amountB}
+                  onChange={(e) => handleAmountBChange(e.target.value)}
+                  className="text-lg font-mono"
+                />
+              </div>
+
+              {/* A Parameter — StableSwap only */}
+              {form.type === 'stable-swap' && (
+                <div className="space-y-3 rounded-lg border border-border p-4">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-semibold">Amplification (A)</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[260px]">
+                        <p>Controls curve flatness near the peg price.</p>
+                        <p className="mt-1">Higher A = flatter curve = less slippage for pegged assets.</p>
+                        <p className="mt-1 text-muted-foreground">0.1–0.5: volatile pairs · 0.5–0.8: soft pegs · 0.8–1.0: stablecoins</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <span className="ml-auto font-mono text-sm font-semibold text-primary">
+                      {aParameter.toFixed(1)}
+                    </span>
+                  </div>
+                  <Slider
+                    min={0.1}
+                    max={1.0}
+                    step={0.1}
+                    value={[aParameter]}
+                    onValueChange={([v]) => setAParameter(v)}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0.1 (volatile)</span>
+                    <span>1.0 (stable)</span>
+                  </div>
+                </div>
               )}
             </div>
-          ))}
-        </div>
+          )}
 
-        <p className="mb-4 text-sm text-muted-foreground">
-          Step {currentStep}: {steps[currentStep - 1].title}
-        </p>
-
-        {/* Step 1: Strategy Type */}
-        {currentStep === 1 && (
-          <div className="space-y-3">
-            {strategyTypes.map((type) => (
-              <button
-                key={type.value}
-                type="button"
-                onClick={() => {
-                  const newTokenPair: [string, string] = type.value === 'stable-swap'
-                    ? ['USDC', 'DAI']
-                    : ['ETH', 'USDC']
-                  setForm({ ...form, type: type.value, tokenPair: newTokenPair })
-                  setAmountA('')
-                  setAmountB('')
-                }}
-                className={`w-full rounded-lg border p-4 text-left transition-colors ${
-                  form.type === type.value
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                }`}
-              >
-                <p className="font-medium">{type.label}</p>
-                <p className="text-sm text-muted-foreground">{type.description}</p>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Step 2: Configuration */}
-        {currentStep === 2 && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Token A</Label>
-                <Select
-                  value={form.tokenPair[0]}
-                  onValueChange={(v) => setForm({ ...form, tokenPair: [v, form.tokenPair[1]] })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTokens.map((token) => (
-                      <SelectItem key={token.symbol} value={token.symbol}>
-                        {token.symbol}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Token B</Label>
-                <Select
-                  value={form.tokenPair[1]}
-                  onValueChange={(v) => setForm({ ...form, tokenPair: [form.tokenPair[0], v] })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableTokens.map((token) => (
-                      <SelectItem key={token.symbol} value={token.symbol}>
-                        {token.symbol}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Fee Tier</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {feeTiers.map((tier) => (
-                  <button
-                    key={tier}
-                    type="button"
-                    onClick={() => setForm({ ...form, feeTier: tier })}
-                    className={`rounded-lg border p-2 text-sm transition-colors ${
-                      form.feeTier === tier
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    {tier}%
-                  </button>
-                ))}
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* Step 3: Select Chains */}
-        {currentStep === 3 && (
-          <div className="space-y-3">
-            {chains.map((chain) => (
-              <label
-                key={chain.id}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${
-                  form.chains.includes(chain.id)
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                }`}
-              >
-                <Checkbox
-                  checked={form.chains.includes(chain.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setForm({ ...form, chains: [...form.chains, chain.id] })
-                    } else {
-                      setForm({ ...form, chains: form.chains.filter((c) => c !== chain.id) })
-                    }
-                  }}
-                />
-                <ChainIcon chain={chain} size="md" showTooltip={false} />
-                <span className="font-medium">{chain.name}</span>
-              </label>
-            ))}
-          </div>
-        )}
-
-        {/* Step 4: Initial Liquidity */}
-        {currentStep === 4 && (
-          <div className="space-y-4">
-            {/* Token A Input */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                {tokenA && <TokenIcon token={tokenA} size="sm" />}
-                <Label className="font-semibold">{form.tokenPair[0]}</Label>
-              </div>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={amountA}
-                onChange={(e) => handleAmountAChange(e.target.value)}
-                className="text-lg font-mono"
-              />
-            </div>
-
-            {/* Plus indicator */}
-            <div className="flex items-center justify-center">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
-                +
-              </div>
-            </div>
-
-            {/* Token B Input */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                {tokenB && <TokenIcon token={tokenB} size="sm" />}
-                <Label className="font-semibold">{form.tokenPair[1]}</Label>
-              </div>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={amountB}
-                onChange={(e) => handleAmountBChange(e.target.value)}
-                className="text-lg font-mono"
-              />
-            </div>
-
-            {/* A Parameter — StableSwap only */}
-            {form.type === 'stable-swap' && (
-              <div className="space-y-3 rounded-lg border border-border p-4">
-                <div className="flex items-center gap-2">
-                  <Label className="font-semibold">Amplification (A)</Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-[260px]">
-                      <p>Controls curve flatness near the peg price.</p>
-                      <p className="mt-1">Higher A = flatter curve = less slippage for pegged assets.</p>
-                      <p className="mt-1 text-muted-foreground">0.1–0.5: volatile pairs · 0.5–0.8: soft pegs · 0.8–1.0: stablecoins</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <span className="ml-auto font-mono text-sm font-semibold text-primary">
-                    {aParameter.toFixed(1)}
-                  </span>
-                </div>
-                <Slider
-                  min={0.1}
-                  max={1.0}
-                  step={0.1}
-                  value={[aParameter]}
-                  onValueChange={([v]) => setAParameter(v)}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>0.1 (volatile)</span>
-                  <span>1.0 (stable)</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 5: Review */}
-        {currentStep === 5 && (
-          <div className="space-y-4 rounded-lg border border-border bg-secondary/30 p-4">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Strategy Type</span>
-              <span className="font-medium">
-                {strategyTypes.find((t) => t.value === form.type)?.label}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Token Pair</span>
-              <span className="font-medium">
-                {form.tokenPair[0]}/{form.tokenPair[1]}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Fee Tier</span>
-              <span className="font-medium">{form.feeTier}%</span>
-            </div>
-            {form.type === 'stable-swap' && (
+          {/* Step 5: Review */}
+          {currentStep === 5 && (
+            <div className="space-y-4 rounded-lg border border-border bg-secondary/30 p-4">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Amplification (A)</span>
-                <span className="font-medium">{aParameter.toFixed(1)}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Chains</span>
-              <span className="font-medium">{form.chains.length} selected</span>
-            </div>
-            <div className="border-t border-border pt-4 mt-4">
-              <p className="text-sm text-muted-foreground mb-2">Initial Liquidity</p>
-              <div className="flex justify-between mb-1">
-                <span className="text-muted-foreground">{form.tokenPair[0]}</span>
-                <span className="font-medium">{amountA}</span>
+                <span className="text-muted-foreground">Strategy Type</span>
+                <span className="font-medium">
+                  {strategyTypes.find((t) => t.value === form.type)?.label}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{form.tokenPair[1]}</span>
-                <span className="font-medium">{amountB}</span>
+                <span className="text-muted-foreground">Token Pair</span>
+                <span className="font-medium">
+                  {form.tokenPair[0]}/{form.tokenPair[1]}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fee Tier</span>
+                <span className="font-medium">{form.feeTier}%</span>
+              </div>
+              {form.type === 'stable-swap' && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amplification (A)</span>
+                  <span className="font-medium">{aParameter.toFixed(1)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Chains</span>
+                <span className="font-medium">{form.chains.length} selected</span>
+              </div>
+              <div className="border-t border-border pt-4 mt-4">
+                <p className="text-sm text-muted-foreground mb-2">Initial Liquidity</p>
+                <div className="flex justify-between mb-1">
+                  <span className="text-muted-foreground">{form.tokenPair[0]}</span>
+                  <span className="font-medium">{amountA}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{form.tokenPair[1]}</span>
+                  <span className="font-medium">{amountB}</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
 
         {/* Deploy Progress */}

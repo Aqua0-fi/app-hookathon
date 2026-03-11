@@ -30,9 +30,9 @@ import Image from 'next/image'
 export default function ProfilePage() {
   const { isConnected, address, email, connect } = useWallet()
 
-  const { data: positions, isLoading: positionsLoading } = useMappedPositions(address)
-  const { data: stats, isLoading: statsLoading } = useMappedUserStats(address)
-  const { data: transactions, isLoading: txLoading } = useMappedTransactions(address)
+  const { data: positions, isLoading: positionsLoading } = useMappedPositions(address || undefined)
+  const { data: stats, isLoading: statsLoading } = useMappedUserStats(address || undefined)
+  const { data: transactions, isLoading: txLoading } = useMappedTransactions(address || undefined)
   const { data: user } = useUser(address ?? undefined)
 
   const isLoading = positionsLoading || statsLoading || txLoading

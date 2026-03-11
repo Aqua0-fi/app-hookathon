@@ -96,8 +96,8 @@ export function calculateRates(
   const decimalsGt = isToken0Lt ? token1Decimals : token0Decimals
   const minDecimals = Math.min(decimalsLt, decimalsGt)
   return {
-    rateLt: 10n ** BigInt(decimalsLt - minDecimals),
-    rateGt: 10n ** BigInt(decimalsGt - minDecimals),
+    rateLt: BigInt("1" + "0".repeat(decimalsLt - minDecimals)),
+    rateGt: BigInt("1" + "0".repeat(decimalsGt - minDecimals)),
   }
 }
 

@@ -49,6 +49,7 @@ describe('API functions', () => {
         tokenPair: ['USDC', 'USDT'],
         feeTier: 0.01,
         chains: ['base'],
+        initialLiquidity: 0,
       })
       expect(result).toHaveProperty('id')
       expect(result).toHaveProperty('name')

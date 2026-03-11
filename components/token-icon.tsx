@@ -29,7 +29,7 @@ export function TokenIcon({ token, size = 'md' }: TokenIconProps) {
       ) : (
         <Image
           src={token.logo}
-          alt={token.name}
+          alt={`${token.symbol} icon`}
           width={px}
           height={px}
           className="rounded-full"

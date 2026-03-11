@@ -23,7 +23,7 @@ export function ChainIcon({ chain, size = 'md', showTooltip = true }: ChainIconP
     >
       <Image
         src={chain.logo}
-        alt={chain.name}
+        alt={`${chain.name} icon`}
         width={px}
         height={px}
         className="rounded-full"

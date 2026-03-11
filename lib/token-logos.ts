@@ -36,6 +36,7 @@ const CHAINS_BY_ID: Record<number, Chain> = {
   130: { id: 'unichain', name: 'Unichain', logo: '/crypto/Unichain.png', color: '#FF007A' },
   1301: { id: 'unichain-sepolia', name: 'Unichain Sepolia', logo: '/crypto/Unichain.png', color: '#FF007A' },
   42161: { id: 'arbitrum', name: 'Arbitrum', logo: '/crypto/ETH.png', color: '#28A0F0' },
+  696969: { id: 'local', name: 'Devnet', logo: '/crypto/Base.png', color: '#10B981' },
 }
 
 /** Chain metadata keyed by chain name (matches backend `chain` field) */
@@ -43,6 +44,7 @@ const CHAINS_BY_NAME: Record<string, Chain> = {
   base: CHAINS_BY_ID[8453],
   unichain: CHAINS_BY_ID[130],
   arbitrum: CHAINS_BY_ID[42161],
+  local: CHAINS_BY_ID[696969],
 }
 
 export function getChainById(chainId: number): Chain {
