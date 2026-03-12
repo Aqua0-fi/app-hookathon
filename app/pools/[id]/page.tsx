@@ -11,6 +11,8 @@ import { ArrowLeft, ArrowUpRight, TrendingUp, Info } from 'lucide-react'
 import { useWallet } from '@/contexts/wallet-context'
 import { ProvideLiquidityModal } from '@/components/pools/provide-liquidity-modal'
 import { VisualLiquidityChart } from '@/components/pools/visual-liquidity-chart'
+import { TranchesPanel } from '@/components/pools/tranches-panel'
+import { TRANCHES_HOOK } from '@/lib/contracts'
 
 function formatNumber(value: number): string {
     if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
@@ -140,6 +142,13 @@ export default function PoolDetailPage() {
                     </ul>
                 </div>
             </div>
+
+            {/* TrancheFi Panel — only for pools using TranchesHook */}
+            {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
+                <div className="mb-8">
+                    <TranchesPanel />
+                </div>
+            )}
 
             {isProvideModalOpen && (
                 <ProvideLiquidityModal

@@ -6,7 +6,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { TokenPairIcon } from '@/components/token-icon'
 import type { V4Pool } from '@/lib/v4-api'
-import { ArrowUpRight, TrendingUp } from 'lucide-react'
+import { ArrowUpRight, TrendingUp, ShieldCheck } from 'lucide-react'
+import { TRANCHES_HOOK } from '@/lib/contracts'
 
 interface PoolCardProps {
     pool: V4Pool
@@ -54,6 +55,12 @@ export function PoolCard({ pool }: PoolCardProps) {
                             <span className="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-violet-500/10 text-violet-400">
                                 Aqua0 Hook
                             </span>
+                            {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
+                                <span className="inline-flex items-center gap-1 mt-0.5 ml-1 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-blue-500/10 text-blue-400">
+                                    <ShieldCheck className="h-2.5 w-2.5" />
+                                    TrancheFi
+                                </span>
+                            )}
                         </div>
                     </div>
                     <div className="flex flex-col items-end">

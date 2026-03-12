@@ -94,6 +94,134 @@ export const ACCOUNT_FACTORY_ABI = [
   },
 ] as const
 
+// ─── TrancheFi (Unichain Sepolia) ─────────────────────────────────────────────
+
+export const TRANCHES_HOOK: Address = '0x45Cd925cC9fc27E34462CD769D46E8e5274Bd5c5'
+export const TRANCHES_ROUTER: Address = '0x6AE54EBfECb6E1eb159bFDdB4CE40408B77da524'
+export const TRANCHES_SHARED_POOL: Address = '0xF7a4797f0b034F8e666c39F1c001d49e79331165'
+
+export const TRANCHES_POOL_KEY = {
+  currency0: '0x18E2b73Bfd9F9624906a4dB7f8AcBd4524D09d94' as Address, // tWETH
+  currency1: '0xd858030873521Aefb8B3f0D4931f27fe12E87440' as Address, // tUSDC
+  fee: 3000,
+  tickSpacing: 60,
+  hooks: '0x45Cd925cC9fc27E34462CD769D46E8e5274Bd5c5' as Address,
+} as const
+
+const POOL_KEY_TUPLE = {
+  type: 'tuple' as const,
+  components: [
+    { name: 'currency0', type: 'address' as const },
+    { name: 'currency1', type: 'address' as const },
+    { name: 'fee', type: 'uint24' as const },
+    { name: 'tickSpacing', type: 'int24' as const },
+    { name: 'hooks', type: 'address' as const },
+  ],
+}
+
+const MODIFY_LIQ_TUPLE = {
+  type: 'tuple' as const,
+  components: [
+    { name: 'tickLower', type: 'int24' as const },
+    { name: 'tickUpper', type: 'int24' as const },
+    { name: 'liquidityDelta', type: 'int256' as const },
+    { name: 'salt', type: 'bytes32' as const },
+  ],
+}
+
+export const TRANCHES_HOOK_ABI = [
+  {
+    name: 'getPoolStats',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'key', ...POOL_KEY_TUPLE }],
+    outputs: [
+      { name: 'totalSenior', type: 'uint256' },
+      { name: 'totalJunior', type: 'uint256' },
+      { name: 'seniorFees', type: 'uint256' },
+      { name: 'juniorFees', type: 'uint256' },
+      { name: 'seniorAPY', type: 'uint256' },
+      { name: 'seniorRatio', type: 'uint256' },
+    ],
+  },
+  {
+    name: 'pendingFees',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'lp', type: 'address' },
+      { name: 'key', ...POOL_KEY_TUPLE },
+    ],
+    outputs: [
+      { name: 'pending0', type: 'uint256' },
+      { name: 'pending1', type: 'uint256' },
+    ],
+  },
+  {
+    name: 'claimableBalance',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: '', type: 'address' },
+      { name: '', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'positions',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: '', type: 'bytes32' }],
+    outputs: [
+      { name: 'tranche', type: 'uint8' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'depositBlock', type: 'uint256' },
+      { name: 'rewardDebt0', type: 'uint256' },
+      { name: 'rewardDebt1', type: 'uint256' },
+    ],
+  },
+  {
+    name: 'claimFees',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'key', ...POOL_KEY_TUPLE }],
+    outputs: [],
+  },
+  {
+    name: 'withdrawFees',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'currency', type: 'address' }],
+    outputs: [],
+  },
+] as const
+
+export const TRANCHES_ROUTER_ABI = [
+  {
+    name: 'addLiquidity',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'key', ...POOL_KEY_TUPLE },
+      { name: 'params', ...MODIFY_LIQ_TUPLE },
+      { name: 'tranche', type: 'uint8' },
+    ],
+    outputs: [{ name: 'delta', type: 'int256' }],
+  },
+  {
+    name: 'removeLiquidity',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'key', ...POOL_KEY_TUPLE },
+      { name: 'params', ...MODIFY_LIQ_TUPLE },
+    ],
+    outputs: [{ name: 'delta', type: 'int256' }],
+  },
+] as const
+
+// ─── V4 Router ────────────────────────────────────────────────────────────────
+
 export const V4_ROUTER_ABI = [
   {
     "type": "function",
