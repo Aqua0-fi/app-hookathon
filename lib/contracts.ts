@@ -96,16 +96,17 @@ export const ACCOUNT_FACTORY_ABI = [
 
 // ─── TrancheFi (Unichain Sepolia) ─────────────────────────────────────────────
 
-export const TRANCHES_HOOK: Address = '0x45Cd925cC9fc27E34462CD769D46E8e5274Bd5c5'
-export const TRANCHES_ROUTER: Address = '0x6AE54EBfECb6E1eb159bFDdB4CE40408B77da524'
-export const TRANCHES_SHARED_POOL: Address = '0xF7a4797f0b034F8e666c39F1c001d49e79331165'
+export const TRANCHES_HOOK: Address = '0x5FCea2C8d1081EDA138C77F9dCf5417B0a51d5C5'
+export const TRANCHES_ROUTER: Address = '0x0494b38CBB9923E7EF82c9Ff8857432628E2a292'
+export const TRANCHES_SHARED_POOL: Address = '0x7921991b93Df0A69534bb942560Ff1711FE6ccfe'
 
+// Token addresses — will be swapped to mUSDC/mWETH when team merges strategies
 export const TRANCHES_POOL_KEY = {
-  currency0: '0x18E2b73Bfd9F9624906a4dB7f8AcBd4524D09d94' as Address, // tWETH
-  currency1: '0xd858030873521Aefb8B3f0D4931f27fe12E87440' as Address, // tUSDC
+  currency0: '0x4D65B7eCf8b27fCeB3Cb99bFdc7F95493c93616a' as Address, // tUSDC
+  currency1: '0xaDc11b152E9ffaf2fB7A6A0933a7598c0b0De48B' as Address, // tWETH
   fee: 3000,
   tickSpacing: 60,
-  hooks: '0x45Cd925cC9fc27E34462CD769D46E8e5274Bd5c5' as Address,
+  hooks: '0x5FCea2C8d1081EDA138C77F9dCf5417B0a51d5C5' as Address,
 } as const
 
 const POOL_KEY_TUPLE = {
@@ -116,16 +117,6 @@ const POOL_KEY_TUPLE = {
     { name: 'fee', type: 'uint24' as const },
     { name: 'tickSpacing', type: 'int24' as const },
     { name: 'hooks', type: 'address' as const },
-  ],
-}
-
-const MODIFY_LIQ_TUPLE = {
-  type: 'tuple' as const,
-  components: [
-    { name: 'tickLower', type: 'int24' as const },
-    { name: 'tickUpper', type: 'int24' as const },
-    { name: 'liquidityDelta', type: 'int256' as const },
-    { name: 'salt', type: 'bytes32' as const },
   ],
 }
 
@@ -178,6 +169,7 @@ export const TRANCHES_HOOK_ABI = [
       { name: 'depositBlock', type: 'uint256' },
       { name: 'rewardDebt0', type: 'uint256' },
       { name: 'rewardDebt1', type: 'uint256' },
+      { name: 'depositSqrtPriceX96', type: 'uint160' },
     ],
   },
   {
@@ -203,10 +195,14 @@ export const TRANCHES_ROUTER_ABI = [
     stateMutability: 'nonpayable',
     inputs: [
       { name: 'key', ...POOL_KEY_TUPLE },
-      { name: 'params', ...MODIFY_LIQ_TUPLE },
+      { name: 'tickLower', type: 'int24' },
+      { name: 'tickUpper', type: 'int24' },
+      { name: 'liquidity', type: 'uint128' },
+      { name: 'amount0', type: 'uint256' },
+      { name: 'amount1', type: 'uint256' },
       { name: 'tranche', type: 'uint8' },
     ],
-    outputs: [{ name: 'delta', type: 'int256' }],
+    outputs: [],
   },
   {
     name: 'removeLiquidity',
@@ -214,9 +210,12 @@ export const TRANCHES_ROUTER_ABI = [
     stateMutability: 'nonpayable',
     inputs: [
       { name: 'key', ...POOL_KEY_TUPLE },
-      { name: 'params', ...MODIFY_LIQ_TUPLE },
+      { name: 'tickLower', type: 'int24' },
+      { name: 'tickUpper', type: 'int24' },
+      { name: 'amount0Initial', type: 'uint256' },
+      { name: 'amount1Initial', type: 'uint256' },
     ],
-    outputs: [{ name: 'delta', type: 'int256' }],
+    outputs: [],
   },
 ] as const
 

@@ -130,6 +130,13 @@ export default function PoolDetailPage() {
                 <VisualLiquidityChart pool={pool} />
             </div>
 
+            {/* TrancheFi Panel — only for pools using TranchesHook */}
+            {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
+                <div className="mb-8">
+                    <TranchesPanel />
+                </div>
+            )}
+
             <div className="rounded-xl border border-border/50 bg-secondary/20 p-6 flex items-start gap-4">
                 <Info className="h-6 w-6 text-emerald-400 mt-0.5" />
                 <div>
@@ -142,13 +149,6 @@ export default function PoolDetailPage() {
                     </ul>
                 </div>
             </div>
-
-            {/* TrancheFi Panel — only for pools using TranchesHook */}
-            {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
-                <div className="mb-8">
-                    <TranchesPanel />
-                </div>
-            )}
 
             {isProvideModalOpen && (
                 <ProvideLiquidityModal

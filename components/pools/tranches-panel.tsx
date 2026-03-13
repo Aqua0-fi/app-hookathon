@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from 'react'
-import { formatUnits } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
+import { useReadContracts } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useWallet } from '@/contexts/wallet-context'
@@ -9,7 +10,20 @@ import { useTranchesStats } from '@/hooks/use-tranches-stats'
 import { useTranchesPosition } from '@/hooks/use-tranches-position'
 import { useTranchesDeposit } from '@/hooks/use-tranches-deposit'
 import { useTranchesClaim } from '@/hooks/use-tranches-claim'
-import { ShieldCheck, Flame, ArrowDownToLine, Coins, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useTranchesRemove } from '@/hooks/use-tranches-remove'
+import { TRANCHES_POOL_KEY, ERC20_ABI } from '@/lib/contracts'
+import {
+  ShieldCheck,
+  Flame,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Coins,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Shield,
+  Wallet,
+} from 'lucide-react'
 
 function fmt(val: bigint, decimals = 18, dp = 4): string {
   const str = formatUnits(val, decimals)
@@ -21,6 +35,34 @@ function fmt(val: bigint, decimals = 18, dp = 4): string {
 
 function bipsToPercent(bips: bigint): string {
   return (Number(bips) / 100).toFixed(2)
+}
+
+// ─── Token Balance Hook ────────────────────────────────────────────────────
+
+function useTokenBalances(address: string | undefined) {
+  const { data, isLoading } = useReadContracts({
+    contracts: address ? [
+      {
+        address: TRANCHES_POOL_KEY.currency0,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address as `0x${string}`],
+      },
+      {
+        address: TRANCHES_POOL_KEY.currency1,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address as `0x${string}`],
+      },
+    ] : [],
+    query: { enabled: !!address, refetchInterval: 10_000 },
+  })
+
+  return {
+    balance0: (data?.[0]?.result as bigint) ?? 0n,
+    balance1: (data?.[1]?.result as bigint) ?? 0n,
+    isLoading,
+  }
 }
 
 // ─── Stats Section ──────────────────────────────────────────────────────────
@@ -70,7 +112,7 @@ function TrancheStats() {
         <div className="mt-1 flex items-end gap-2">
           <p className="text-xl font-bold">{seniorPct.toFixed(1)}%</p>
           <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden mb-1">
-            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${seniorPct}%` }} />
+            <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${seniorPct}%` }} />
           </div>
         </div>
       </div>
@@ -81,20 +123,28 @@ function TrancheStats() {
 // ─── Deposit Section ────────────────────────────────────────────────────────
 
 function TrancheDeposit() {
+  const { address } = useWallet()
   const [selectedTranche, setSelectedTranche] = useState<0 | 1>(0)
-  const [amount, setAmount] = useState('')
+  const [amount0, setAmount0] = useState('')
+  const [amount1, setAmount1] = useState('')
   const deposit = useTranchesDeposit()
+  const { balance0, balance1 } = useTokenBalances(address ?? undefined)
 
   const handleDeposit = () => {
-    if (!amount || parseFloat(amount) <= 0) return
-    const liquidityDelta = BigInt(Math.floor(parseFloat(amount) * 1e18))
-    deposit.execute({ tranche: selectedTranche, liquidityDelta })
+    if ((!amount0 || parseFloat(amount0) <= 0) && (!amount1 || parseFloat(amount1) <= 0)) return
+    deposit.execute({
+      tranche: selectedTranche,
+      amount0: amount0 || '0',
+      amount1: amount1 || '0',
+    })
   }
+
+  const isProcessing = deposit.step !== 'idle' && deposit.step !== 'done' && deposit.step !== 'error'
 
   const stepLabel: Record<string, string> = {
     idle: '',
-    approving0: 'Approving tWETH...',
-    approving1: 'Approving tUSDC...',
+    approving0: 'Approving tUSDC...',
+    approving1: 'Approving tWETH...',
     depositing: 'Depositing into tranche...',
     confirming: 'Confirming transaction...',
     done: 'Deposit successful!',
@@ -135,32 +185,61 @@ function TrancheDeposit() {
         </button>
       </div>
 
-      {/* Amount input */}
-      <div>
-        <label className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5 block">
-          Liquidity Amount
-        </label>
-        <Input
-          type="number"
-          placeholder="e.g. 10"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="text-lg"
-          disabled={deposit.step !== 'idle' && deposit.step !== 'done' && deposit.step !== 'error'}
-        />
+      {/* Amount inputs */}
+      <div className="space-y-3">
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">tUSDC Amount</label>
+            <button
+              onClick={() => setAmount0(formatUnits(balance0, 18))}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Wallet className="h-3 w-3" />
+              {fmt(balance0, 18, 2)}
+            </button>
+          </div>
+          <Input
+            type="number"
+            placeholder="0.0"
+            value={amount0}
+            onChange={(e) => setAmount0(e.target.value)}
+            className="text-lg"
+            disabled={isProcessing}
+          />
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">tWETH Amount</label>
+            <button
+              onClick={() => setAmount1(formatUnits(balance1, 18))}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Wallet className="h-3 w-3" />
+              {fmt(balance1, 18, 2)}
+            </button>
+          </div>
+          <Input
+            type="number"
+            placeholder="0.0"
+            value={amount1}
+            onChange={(e) => setAmount1(e.target.value)}
+            className="text-lg"
+            disabled={isProcessing}
+          />
+        </div>
       </div>
 
       {/* Action button */}
       {deposit.step === 'done' ? (
-        <Button onClick={deposit.reset} variant="outline" className="w-full gap-2">
+        <Button onClick={() => { deposit.reset(); setAmount0(''); setAmount1('') }} variant="outline" className="w-full gap-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           Deposit Successful — Deposit More
         </Button>
       ) : deposit.step === 'error' ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm text-red-400">
-            <AlertCircle className="h-4 w-4" />
-            {deposit.error}
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span className="truncate">{deposit.error}</span>
           </div>
           <Button onClick={deposit.reset} variant="outline" className="w-full">
             Try Again
@@ -169,10 +248,13 @@ function TrancheDeposit() {
       ) : (
         <Button
           onClick={handleDeposit}
-          disabled={!amount || parseFloat(amount) <= 0 || (deposit.step !== 'idle')}
+          disabled={
+            ((!amount0 || parseFloat(amount0) <= 0) && (!amount1 || parseFloat(amount1) <= 0))
+            || isProcessing
+          }
           className={`w-full gap-2 ${selectedTranche === 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
         >
-          {deposit.step !== 'idle' && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
           {deposit.step === 'idle'
             ? `Deposit into ${selectedTranche === 0 ? 'Senior' : 'Junior'}`
             : stepLabel[deposit.step]}
@@ -187,6 +269,7 @@ function TrancheDeposit() {
 function TranchePosition() {
   const { position, hasPosition, isLoading } = useTranchesPosition()
   const claim = useTranchesClaim()
+  const remove = useTranchesRemove()
 
   if (isLoading) {
     return <div className="h-32 rounded-xl border border-border/50 bg-secondary/20 animate-pulse" />
@@ -201,7 +284,6 @@ function TranchePosition() {
   }
 
   const isSenior = position.tranche === 0
-  const trancheColor = isSenior ? 'blue' : 'orange'
   const trancheLabel = isSenior ? 'Senior' : 'Junior'
   const TrancheIcon = isSenior ? ShieldCheck : Flame
 
@@ -211,20 +293,42 @@ function TranchePosition() {
   const claimStepLabel: Record<string, string> = {
     idle: 'Claim & Withdraw Fees',
     claiming: 'Claiming fees...',
-    withdrawing0: 'Withdrawing tWETH...',
-    withdrawing1: 'Withdrawing tUSDC...',
+    withdrawing0: 'Withdrawing tUSDC...',
+    withdrawing1: 'Withdrawing tWETH...',
     confirming: 'Confirming...',
     done: 'Fees withdrawn!',
     error: claim.error || 'Error',
   }
 
+  const removeStepLabel: Record<string, string> = {
+    idle: 'Remove Liquidity',
+    removing: 'Removing position...',
+    confirming: 'Confirming...',
+    done: 'Liquidity removed!',
+    error: remove.error || 'Error',
+  }
+
+  const handleRemove = () => {
+    // Use position amount as both initial amounts (1:1 pool)
+    remove.execute({
+      amount0Initial: position.amount,
+      amount1Initial: position.amount,
+    })
+  }
+
   return (
-    <div className={`rounded-xl border border-${trancheColor}-500/20 bg-${trancheColor}-500/5 p-5 space-y-4`}>
+    <div className={`rounded-xl border ${isSenior ? 'border-blue-500/20 bg-blue-500/5' : 'border-orange-500/20 bg-orange-500/5'} p-5 space-y-4`}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <TrancheIcon className={`h-5 w-5 text-${trancheColor}-400`} />
-          <span className={`font-bold text-${trancheColor}-400`}>{trancheLabel} Position</span>
+          <TrancheIcon className={`h-5 w-5 ${isSenior ? 'text-blue-400' : 'text-orange-400'}`} />
+          <span className={`font-bold ${isSenior ? 'text-blue-400' : 'text-orange-400'}`}>{trancheLabel} Position</span>
+          {isSenior && (
+            <span className="flex items-center gap-1 text-[10px] rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-400">
+              <Shield className="h-3 w-3" />
+              IL Protected
+            </span>
+          )}
         </div>
         <span className="text-xs text-muted-foreground">Block #{position.depositBlock.toString()}</span>
       </div>
@@ -237,35 +341,74 @@ function TranchePosition() {
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pending Fees</p>
-          <p className="text-sm font-medium">{fmt(position.pendingFees.token0)} / {fmt(position.pendingFees.token1)}</p>
+          <div className="text-sm font-medium space-y-0.5">
+            <p>{fmt(position.pendingFees.token0)} tUSDC</p>
+            <p>{fmt(position.pendingFees.token1)} tWETH</p>
+          </div>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Claimable</p>
-          <p className="text-sm font-medium">{fmt(position.claimable.token0)} / {fmt(position.claimable.token1)}</p>
+          <div className="text-sm font-medium space-y-0.5">
+            <p>{fmt(position.claimable.token0)} tUSDC</p>
+            <p>{fmt(position.claimable.token1)} tWETH</p>
+          </div>
         </div>
       </div>
 
-      {/* Claim button */}
-      {(hasPending || hasClaimable) && (
-        claim.step === 'done' ? (
-          <Button onClick={claim.reset} variant="outline" size="sm" className="w-full gap-2">
+      {/* Actions */}
+      <div className="flex gap-2">
+        {/* Claim button */}
+        {(hasPending || hasClaimable) && (
+          claim.step === 'done' ? (
+            <Button onClick={claim.reset} variant="outline" size="sm" className="flex-1 gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              Fees Withdrawn!
+            </Button>
+          ) : claim.step === 'error' ? (
+            <Button onClick={claim.reset} variant="outline" size="sm" className="flex-1 gap-2 text-red-400">
+              <AlertCircle className="h-4 w-4" />
+              Retry Claim
+            </Button>
+          ) : (
+            <Button
+              onClick={claim.execute}
+              disabled={claim.step !== 'idle'}
+              size="sm"
+              variant="outline"
+              className="flex-1 gap-2"
+            >
+              {claim.step !== 'idle' && <Loader2 className="h-4 w-4 animate-spin" />}
+              <Coins className="h-4 w-4" />
+              {claimStepLabel[claim.step]}
+            </Button>
+          )
+        )}
+
+        {/* Remove button */}
+        {remove.step === 'done' ? (
+          <Button onClick={remove.reset} variant="outline" size="sm" className="flex-1 gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-            Fees Withdrawn!
+            Removed!
+          </Button>
+        ) : remove.step === 'error' ? (
+          <Button onClick={remove.reset} variant="outline" size="sm" className="flex-1 gap-2 text-red-400">
+            <AlertCircle className="h-4 w-4" />
+            Retry Remove
           </Button>
         ) : (
           <Button
-            onClick={claim.execute}
-            disabled={claim.step !== 'idle'}
+            onClick={handleRemove}
+            disabled={remove.step !== 'idle'}
             size="sm"
             variant="outline"
-            className="w-full gap-2"
+            className="flex-1 gap-2 text-red-400 hover:text-red-300 hover:border-red-500/30"
           >
-            {claim.step !== 'idle' && <Loader2 className="h-4 w-4 animate-spin" />}
-            <Coins className="h-4 w-4" />
-            {claimStepLabel[claim.step]}
+            {remove.step !== 'idle' && <Loader2 className="h-4 w-4 animate-spin" />}
+            <ArrowUpFromLine className="h-4 w-4" />
+            {removeStepLabel[remove.step]}
           </Button>
-        )
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -287,7 +430,7 @@ export function TranchesPanel() {
 
       {/* Info */}
       <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 text-sm text-blue-300/80">
-        <strong className="text-blue-300">How it works:</strong> Fees are distributed via a waterfall — Senior tranche gets paid first up to its target APY. Junior absorbs impermanent loss but earns all remaining fees.
+        <strong className="text-blue-300">How it works:</strong> Fees are distributed via a waterfall — Senior tranche gets paid first up to its target APY, plus IL protection from the reserve. Junior absorbs impermanent loss but earns all remaining fees.
       </div>
 
       {/* Stats (always visible) */}

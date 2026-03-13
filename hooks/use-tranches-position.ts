@@ -73,7 +73,7 @@ export function useTranchesPosition() {
     return { position: undefined, isLoading, hasPosition: false }
   }
 
-  const [tranche, amount, depositBlock] = posData as [number, bigint, bigint, bigint, bigint]
+  const [tranche, amount, depositBlock, , , depositSqrtPriceX96] = posData as [number, bigint, bigint, bigint, bigint, bigint]
   const hasPosition = amount > 0n
 
   const [pending0, pending1] = (feesData as [bigint, bigint]) || [0n, 0n]
@@ -85,6 +85,7 @@ export function useTranchesPosition() {
       tranche: tranche as 0 | 1, // 0 = Senior, 1 = Junior
       amount,
       depositBlock,
+      depositSqrtPriceX96,
       pendingFees: { token0: pending0, token1: pending1 },
       claimable: { token0: claimable0 ?? 0n, token1: claimable1 ?? 0n },
     },

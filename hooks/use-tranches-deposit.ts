@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { parseUnits } from 'viem'
 import {
   TRANCHES_ROUTER,
   TRANCHES_ROUTER_ABI,
@@ -23,33 +24,50 @@ export function useTranchesDeposit() {
 
   const execute = useCallback(async (params: {
     tranche: 0 | 1 // 0 = Senior, 1 = Junior
-    liquidityDelta: bigint
+    amount0: string  // token0 amount (human-readable)
+    amount1: string  // token1 amount (human-readable)
     tickLower?: number
     tickUpper?: number
   }) => {
     setError(null)
-    const { tranche, liquidityDelta, tickLower = -887220, tickUpper = 887220 } = params
+    const { tranche, amount0, amount1, tickLower = -120, tickUpper = 120 } = params
+
+    const amt0 = parseUnits(amount0 || '0', 18)
+    const amt1 = parseUnits(amount1 || '0', 18)
+
+    if (amt0 === 0n && amt1 === 0n) {
+      setStep('error')
+      setError('Enter at least one token amount')
+      return
+    }
+
+    // Liquidity = min of the two amounts (simple 1:1 pool heuristic)
+    const liquidity = amt0 < amt1 ? amt0 : amt1 > 0n ? amt1 : amt0
 
     try {
       // Approve token0
-      setStep('approving0')
-      await writeContractAsync({
-        address: TRANCHES_POOL_KEY.currency0,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [TRANCHES_ROUTER, BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')],
-      })
+      if (amt0 > 0n) {
+        setStep('approving0')
+        await writeContractAsync({
+          address: TRANCHES_POOL_KEY.currency0,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [TRANCHES_ROUTER, amt0],
+        })
+      }
 
       // Approve token1
-      setStep('approving1')
-      await writeContractAsync({
-        address: TRANCHES_POOL_KEY.currency1,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [TRANCHES_ROUTER, BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')],
-      })
+      if (amt1 > 0n) {
+        setStep('approving1')
+        await writeContractAsync({
+          address: TRANCHES_POOL_KEY.currency1,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [TRANCHES_ROUTER, amt1],
+        })
+      }
 
-      // Deposit
+      // Deposit via new flat-param addLiquidity
       setStep('depositing')
       const hash = await writeContractAsync({
         address: TRANCHES_ROUTER,
@@ -57,12 +75,11 @@ export function useTranchesDeposit() {
         functionName: 'addLiquidity',
         args: [
           TRANCHES_POOL_KEY,
-          {
-            tickLower,
-            tickUpper,
-            liquidityDelta,
-            salt: '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`,
-          },
+          tickLower,
+          tickUpper,
+          liquidity,
+          amt0,
+          amt1,
           tranche,
         ],
       })
