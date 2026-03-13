@@ -12,6 +12,7 @@ import { useWallet } from '@/contexts/wallet-context'
 import { ProvideLiquidityModal } from '@/components/pools/provide-liquidity-modal'
 import { VisualLiquidityChart } from '@/components/pools/visual-liquidity-chart'
 import { TranchesPanel } from '@/components/pools/tranches-panel'
+import { RSCOracleSimulator } from '@/components/pools/rsc-oracle-simulator'
 import { TRANCHES_HOOK } from '@/lib/contracts'
 
 function formatNumber(value: number): string {
@@ -123,6 +124,11 @@ export default function PoolDetailPage() {
                     <p className="mt-1.5 text-sm font-medium tabular-nums mt-3 truncate">{pool.poolKey.hooks}</p>
                 </div>
             </div>
+
+            {/* RSC Oracle + Volatility Simulator — only for TranchesHook pools */}
+            {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
+                <RSCOracleSimulator currentPrice={pool.currentPrice} />
+            )}
 
             {/* Virtual Liquidity Chart */}
             <div className="mb-8">
