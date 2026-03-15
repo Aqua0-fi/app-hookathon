@@ -143,8 +143,8 @@ function TrancheDeposit() {
 
   const stepLabel: Record<string, string> = {
     idle: '',
-    approving0: 'Approving tUSDC...',
-    approving1: 'Approving tWETH...',
+    approving0: 'Approving mUSDC...',
+    approving1: 'Approving mWETH...',
     depositing: 'Depositing into tranche...',
     confirming: 'Confirming transaction...',
     done: 'Deposit successful!',
@@ -189,7 +189,7 @@ function TrancheDeposit() {
       <div className="space-y-3">
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs uppercase tracking-wider text-muted-foreground">tUSDC Amount</label>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">mUSDC Amount</label>
             <button
               onClick={() => setAmount0(formatUnits(balance0, 18))}
               className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -209,7 +209,7 @@ function TrancheDeposit() {
         </div>
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs uppercase tracking-wider text-muted-foreground">tWETH Amount</label>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">mWETH Amount</label>
             <button
               onClick={() => setAmount1(formatUnits(balance1, 18))}
               className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -293,8 +293,8 @@ function TranchePosition() {
   const claimStepLabel: Record<string, string> = {
     idle: 'Claim & Withdraw Fees',
     claiming: 'Claiming fees...',
-    withdrawing0: 'Withdrawing tUSDC...',
-    withdrawing1: 'Withdrawing tWETH...',
+    withdrawing0: 'Withdrawing mUSDC...',
+    withdrawing1: 'Withdrawing mWETH...',
     confirming: 'Confirming...',
     done: 'Fees withdrawn!',
     error: claim.error || 'Error',
@@ -342,15 +342,15 @@ function TranchePosition() {
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pending Fees</p>
           <div className="text-sm font-medium space-y-0.5">
-            <p>{fmt(position.pendingFees.token0)} tUSDC</p>
-            <p>{fmt(position.pendingFees.token1)} tWETH</p>
+            <p>{fmt(position.pendingFees.token0)} mUSDC</p>
+            <p>{fmt(position.pendingFees.token1)} mWETH</p>
           </div>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Claimable</p>
           <div className="text-sm font-medium space-y-0.5">
-            <p>{fmt(position.claimable.token0)} tUSDC</p>
-            <p>{fmt(position.claimable.token1)} tWETH</p>
+            <p>{fmt(position.claimable.token0)} mUSDC</p>
+            <p>{fmt(position.claimable.token1)} mWETH</p>
           </div>
         </div>
       </div>

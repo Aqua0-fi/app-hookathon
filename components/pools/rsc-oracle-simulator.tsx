@@ -65,7 +65,7 @@ const SIM = {
   days: 30,
 }
 
-function simulateScenario(scenario: Scenario) {
+function simulateScenario(scenario: Scenario, currentPrice: number) {
   const { liquidity, dailyVolume, feeBips, hookFeeBips, days, seniorAPYBips, ilReserveBips } = SIM
 
   const totalSwapFees = dailyVolume * days * (feeBips / 10000)
@@ -102,7 +102,7 @@ function simulateScenario(scenario: Scenario) {
     juniorNet: juniorNet.toFixed(2),
     juniorAPY: juniorAPY.toFixed(1),
     ilReserve: ilReserve.toFixed(2),
-    newPrice: scenario.priceChange.toFixed(4),
+    newPrice: (currentPrice * scenario.priceChange).toFixed(currentPrice >= 100 ? 0 : 4),
   }
 }
 
@@ -192,7 +192,7 @@ export function RSCOracleSimulator({ currentPrice }: { currentPrice: number }) {
             {/* Scenarios grid */}
             <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
               {SCENARIOS.map((scenario) => {
-                const sim = simulateScenario(scenario)
+                const sim = simulateScenario(scenario, currentPrice)
                 const ScenarioIcon = scenario.icon
 
                 return (
@@ -215,7 +215,7 @@ export function RSCOracleSimulator({ currentPrice }: { currentPrice: number }) {
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Price</span>
-                        <span className="tabular-nums">{currentPrice.toFixed(4)} &rarr; {sim.newPrice}</span>
+                        <span className="tabular-nums">{currentPrice >= 100 ? currentPrice.toFixed(0) : currentPrice.toFixed(4)} &rarr; {sim.newPrice}</span>
                       </div>
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Impermanent Loss</span>

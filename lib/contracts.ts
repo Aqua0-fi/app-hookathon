@@ -100,10 +100,10 @@ export const TRANCHES_HOOK: Address = '0x5FCea2C8d1081EDA138C77F9dCf5417B0a51d5C
 export const TRANCHES_ROUTER: Address = '0x0494b38CBB9923E7EF82c9Ff8857432628E2a292'
 export const TRANCHES_SHARED_POOL: Address = '0x7921991b93Df0A69534bb942560Ff1711FE6ccfe'
 
-// Token addresses — will be swapped to mUSDC/mWETH when team merges strategies
+// Mock token addresses for TrancheFi demo
 export const TRANCHES_POOL_KEY = {
-  currency0: '0x4D65B7eCf8b27fCeB3Cb99bFdc7F95493c93616a' as Address, // tUSDC
-  currency1: '0xaDc11b152E9ffaf2fB7A6A0933a7598c0b0De48B' as Address, // tWETH
+  currency0: '0x4D65B7eCf8b27fCeB3Cb99bFdc7F95493c93616a' as Address, // mWETH
+  currency1: '0xaDc11b152E9ffaf2fB7A6A0933a7598c0b0De48B' as Address, // mUSDC
   fee: 3000,
   tickSpacing: 60,
   hooks: '0x5FCea2C8d1081EDA138C77F9dCf5417B0a51d5C5' as Address,
