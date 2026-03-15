@@ -93,7 +93,10 @@ export default function PoolDetailPage() {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
+                        <RSCOracleSimulator currentPrice={pool.currentPrice} />
+                    )}
                     <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5">
                         <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
                         <span className="text-sm font-bold text-emerald-400">Just-in-Time Active</span>
@@ -124,11 +127,6 @@ export default function PoolDetailPage() {
                     <p className="mt-1.5 text-sm font-medium tabular-nums mt-3 truncate">{pool.poolKey.hooks}</p>
                 </div>
             </div>
-
-            {/* RSC Oracle + Volatility Simulator — only for TranchesHook pools */}
-            {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
-                <RSCOracleSimulator currentPrice={pool.currentPrice} />
-            )}
 
             {/* Virtual Liquidity Chart */}
             <div className="mb-8">
