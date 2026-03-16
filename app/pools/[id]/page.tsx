@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { TokenPairIcon } from '@/components/token-icon'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { useV4Pools } from '@/hooks/use-v4-pools'
-import { ArrowLeft, TrendingUp, Info } from 'lucide-react'
+import { ArrowLeft, TrendingUp, Info, ExternalLink } from 'lucide-react'
 import { useWallet } from '@/contexts/wallet-context'
 import { ProvideLiquidityModal } from '@/components/pools/provide-liquidity-modal'
 import { TranchesLiquidityModal } from '@/components/pools/tranches-liquidity-modal'
@@ -111,20 +111,54 @@ export default function PoolDetailPage() {
             {/* Key Metrics Row */}
             <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4">
                 <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Price</p>
+                    <div className="flex items-center gap-1.5 group relative">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ETH Price</p>
+                        <div className="relative">
+                            <Info className="h-3 w-3 text-muted-foreground/50 cursor-help peer" />
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-52 p-2.5 rounded-lg bg-zinc-900 border border-border/50 shadow-xl z-50 opacity-0 pointer-events-none peer-hover:opacity-100 transition-opacity duration-150">
+                                <p className="text-[11px] text-zinc-300 leading-relaxed">Current ETH price in the pool, denominated in USDC. Derived from the active tick in the Uniswap V4 PoolManager.</p>
+                                <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-zinc-900 border-r border-b border-border/50 rotate-45 -mt-1" />
+                            </div>
+                        </div>
+                    </div>
                     <p className="mt-1.5 text-2xl font-bold tabular-nums">{pool.currentPrice.toPrecision(5)}</p>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Tick</p>
+                    <div className="flex items-center gap-1.5">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Tick</p>
+                        <div className="relative">
+                            <Info className="h-3 w-3 text-muted-foreground/50 cursor-help peer" />
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-52 p-2.5 rounded-lg bg-zinc-900 border border-border/50 shadow-xl z-50 opacity-0 pointer-events-none peer-hover:opacity-100 transition-opacity duration-150">
+                                <p className="text-[11px] text-zinc-300 leading-relaxed">Logarithmic representation of price in Uniswap V4. Price = 1.0001^tick. Each tick is a 0.01% (1 bip) price increment.</p>
+                                <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-zinc-900 border-r border-b border-border/50 rotate-45 -mt-1" />
+                            </div>
+                        </div>
+                    </div>
                     <p className="mt-1.5 text-2xl font-bold tabular-nums">{pool.currentTick}</p>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pool ID</p>
-                    <p className="mt-1.5 text-sm font-medium tabular-nums mt-3 truncate">{pool.poolId}</p>
+                    <a
+                        href={`https://sepolia.uniscan.xyz/tx/${pool.poolId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 flex items-center gap-1.5 text-sm font-medium tabular-nums truncate text-white/80 hover:text-white transition-colors"
+                    >
+                        <span className="truncate">{pool.poolId}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Hook Address</p>
-                    <p className="mt-1.5 text-sm font-medium tabular-nums mt-3 truncate">{pool.poolKey.hooks}</p>
+                    <a
+                        href={`https://sepolia.uniscan.xyz/address/${pool.poolKey.hooks}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 flex items-center gap-1.5 text-sm font-medium tabular-nums truncate text-white/80 hover:text-white transition-colors"
+                    >
+                        <span className="truncate">{pool.poolKey.hooks}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
                 </div>
             </div>
 

@@ -149,7 +149,7 @@ export function RSCOracleSimulator({ currentPrice }: { currentPrice: number }) {
             {showTooltip && (
               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 rounded-lg bg-zinc-900 border border-violet-500/30 shadow-xl shadow-black/40 z-50 animate-in fade-in duration-150">
                 <p className="text-xs text-zinc-300 leading-relaxed">
-                  Price sourced from the <span className="text-violet-400 font-medium">TWAP Oracle</span> integrated in the Uniswap V4 hook. It computes a time-weighted average price over recent swaps to resist manipulation.
+                  <span className="text-violet-400 font-medium">Reactive Smart Contract (RSC)</span> — Deployed on Reactive Network, it listens to Uniswap V4 Swap events across Ethereum, Base, and Unichain. Computes an equal-weighted average price across all chains and tracks realized volatility via EMA. When volatility shifts regime (Low/Med/High), it sends a cross-chain callback to adjust the Senior tranche target APY automatically.
                 </p>
                 <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-zinc-900 border-r border-b border-violet-500/30 rotate-45 -mt-1" />
               </div>

@@ -23,6 +23,7 @@ import {
   AlertCircle,
   Shield,
   Wallet,
+  Info,
 } from 'lucide-react'
 
 function fmt(val: bigint, decimals = 18, dp = 4): string {
@@ -166,6 +167,14 @@ export function TrancheDeposit() {
           <div className="flex items-center gap-2 mb-1">
             <ShieldCheck className="h-4 w-4 text-blue-400" />
             <span className="font-bold text-blue-400">Senior</span>
+            <div className="relative ml-auto" onClick={(e) => e.stopPropagation()}>
+              <Info className="h-3.5 w-3.5 text-blue-400/50 hover:text-blue-400 transition-colors cursor-help peer" />
+              <div className="absolute right-0 bottom-full mb-2 w-56 p-3 rounded-lg bg-zinc-900 border border-blue-500/30 shadow-xl z-50 opacity-0 pointer-events-none peer-hover:opacity-100 transition-opacity duration-150">
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  <span className="text-blue-400 font-medium">Senior tranche</span> gets paid first from swap fees up to a target APY. Any impermanent loss is compensated from the IL reserve funded by Junior. Ideal for conservative LPs who want predictable yield.
+                </p>
+              </div>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">Priority fees, IL protection, lower risk</p>
         </button>
@@ -180,6 +189,14 @@ export function TrancheDeposit() {
           <div className="flex items-center gap-2 mb-1">
             <Flame className="h-4 w-4 text-orange-400" />
             <span className="font-bold text-orange-400">Junior</span>
+            <div className="relative ml-auto" onClick={(e) => e.stopPropagation()}>
+              <Info className="h-3.5 w-3.5 text-orange-400/50 hover:text-orange-400 transition-colors cursor-help peer" />
+              <div className="absolute right-0 bottom-full mb-2 w-56 p-3 rounded-lg bg-zinc-900 border border-orange-500/30 shadow-xl z-50 opacity-0 pointer-events-none peer-hover:opacity-100 transition-opacity duration-150">
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  <span className="text-orange-400 font-medium">Junior tranche</span> earns all remaining fees after Senior is paid, plus absorbs impermanent loss. A portion of Junior fees funds the IL reserve. Higher risk but potentially much higher returns in low-volatility conditions.
+                </p>
+              </div>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">Higher yield, absorbs IL, higher risk</p>
         </button>
