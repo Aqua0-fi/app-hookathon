@@ -123,13 +123,38 @@ export function TrancheStats() {
 
 // ─── Deposit Section ────────────────────────────────────────────────────────
 
-export function TrancheDeposit() {
+export function TrancheDeposit({ poolPrice = 2000 }: { poolPrice?: number }) {
   const { address } = useWallet()
   const [selectedTranche, setSelectedTranche] = useState<0 | 1>(0)
   const [amount0, setAmount0] = useState('')
   const [amount1, setAmount1] = useState('')
+  const [lastEdited, setLastEdited] = useState<'amount0' | 'amount1' | null>(null)
   const deposit = useTranchesDeposit()
   const { balance0, balance1 } = useTokenBalances(address ?? undefined)
+
+  const handleAmount0Change = (val: string) => {
+    setAmount0(val)
+    setLastEdited('amount0')
+    const num = parseFloat(val)
+    if (!isNaN(num) && num > 0 && poolPrice > 0) {
+      // mUSDC entered → derive mWETH (divide by price)
+      setAmount1((num / poolPrice).toFixed(6))
+    } else {
+      setAmount1('')
+    }
+  }
+
+  const handleAmount1Change = (val: string) => {
+    setAmount1(val)
+    setLastEdited('amount1')
+    const num = parseFloat(val)
+    if (!isNaN(num) && num > 0 && poolPrice > 0) {
+      // mWETH entered → derive mUSDC (multiply by price)
+      setAmount0((num * poolPrice).toFixed(2))
+    } else {
+      setAmount0('')
+    }
+  }
 
   const handleDeposit = () => {
     if ((!amount0 || parseFloat(amount0) <= 0) && (!amount1 || parseFloat(amount1) <= 0)) return
@@ -208,7 +233,7 @@ export function TrancheDeposit() {
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs uppercase tracking-wider text-muted-foreground">mUSDC Amount</label>
             <button
-              onClick={() => setAmount0(formatUnits(balance0, 18))}
+              onClick={() => handleAmount0Change(formatUnits(balance0, 18))}
               className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <Wallet className="h-3 w-3" />
@@ -219,7 +244,7 @@ export function TrancheDeposit() {
             type="number"
             placeholder="0.0"
             value={amount0}
-            onChange={(e) => setAmount0(e.target.value)}
+            onChange={(e) => handleAmount0Change(e.target.value)}
             className="text-lg"
             disabled={isProcessing}
           />
@@ -228,7 +253,7 @@ export function TrancheDeposit() {
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs uppercase tracking-wider text-muted-foreground">mWETH Amount</label>
             <button
-              onClick={() => setAmount1(formatUnits(balance1, 18))}
+              onClick={() => handleAmount1Change(formatUnits(balance1, 18))}
               className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <Wallet className="h-3 w-3" />
@@ -239,7 +264,7 @@ export function TrancheDeposit() {
             type="number"
             placeholder="0.0"
             value={amount1}
-            onChange={(e) => setAmount1(e.target.value)}
+            onChange={(e) => handleAmount1Change(e.target.value)}
             className="text-lg"
             disabled={isProcessing}
           />
@@ -269,7 +294,7 @@ export function TrancheDeposit() {
             ((!amount0 || parseFloat(amount0) <= 0) && (!amount1 || parseFloat(amount1) <= 0))
             || isProcessing
           }
-          className={`w-full gap-2 ${selectedTranche === 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+          className="w-full gap-2 bg-red-600 hover:bg-red-700"
         >
           {isProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
           {deposit.step === 'idle'

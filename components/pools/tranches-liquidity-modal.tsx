@@ -13,9 +13,10 @@ import { TrancheDeposit } from './tranches-panel'
 interface TranchesLiquidityModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  poolPrice?: number
 }
 
-export function TranchesLiquidityModal({ open, onOpenChange }: TranchesLiquidityModalProps) {
+export function TranchesLiquidityModal({ open, onOpenChange, poolPrice = 2000 }: TranchesLiquidityModalProps) {
   const { isConnected } = useWallet()
 
   return (
@@ -34,7 +35,7 @@ export function TranchesLiquidityModal({ open, onOpenChange }: TranchesLiquidity
         </DialogHeader>
 
         {isConnected ? (
-          <TrancheDeposit />
+          <TrancheDeposit poolPrice={poolPrice} />
         ) : (
           <div className="rounded-xl border border-dashed border-border/50 p-6 text-center">
             <p className="text-muted-foreground text-sm">Connect your wallet to deposit into a tranche.</p>

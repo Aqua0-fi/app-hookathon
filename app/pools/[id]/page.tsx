@@ -201,6 +201,7 @@ export default function PoolDetailPage() {
                     <TranchesLiquidityModal
                         open={isProvideModalOpen}
                         onOpenChange={setIsProvideModalOpen}
+                        poolPrice={pool.currentPrice}
                     />
                 ) : (
                     <ProvideLiquidityModal
