@@ -28,27 +28,6 @@ import { VisualLiquidityChart } from '@/components/pools/visual-liquidity-chart'
 import { formatUnits } from 'viem'
 import { useSharedBalances } from '@/hooks/use-shared-balances'
 
-// Mock Transactions
-const MOCK_TRANSACTIONS = [
-    {
-        id: "tx-1",
-        type: "deposit",
-        amount: "1.5 WETH, 3500 USDC",
-        pool: "WETH/USDC",
-        status: "completed",
-        timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
-        hash: "0x123abc...",
-    },
-    {
-        id: "tx-2",
-        type: "withdraw fees",
-        amount: "45.50 USDC",
-        pool: "WETH/USDC",
-        status: "completed",
-        timestamp: new Date(Date.now() - 3600000 * 48).toISOString(),
-        hash: "0x456def...",
-    }
-]
 
 export default function DashboardPage() {
     const { isConnected, address, connect, chainId } = useWallet()
@@ -263,50 +242,7 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                {/* Transaction History */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Pool</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead className="text-right">Hash</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {MOCK_TRANSACTIONS.map((tx) => (
-                                    <TableRow key={tx.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                {getTransactionIcon(tx.type)}
-                                                <span className="capitalize">{tx.type}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-medium">{tx.pool}</TableCell>
-                                        <TableCell>
-                                            {tx.amount}
-                                        </TableCell>
-                                        <TableCell>{getStatusBadge(tx.status)}</TableCell>
-                                        <TableCell className="text-muted-foreground">{formatDate(tx.timestamp)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" className="h-8 gap-1 px-2">
-                                                <span className="font-mono text-xs text-muted-foreground hover:text-foreground">{tx.hash.slice(0, 10)}...</span>
-                                                <ExternalLink className="h-3 w-3" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                {/* Transaction History — TODO: wire to real on-chain data */}
             </div>
         </div>
     )
