@@ -32,7 +32,9 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
     pools.forEach(p => {
         const getLogo = (symbol: string) => {
             const clean = symbol.replace(/^m/, '')
-            return clean === 'WBTC' ? '/crypto/BTC.png' : `/crypto/${clean}.png`
+            if (clean === 'WBTC') return '/crypto/BTC.png'
+            if (clean === 'WETH') return '/crypto/ETH.png'
+            return `/crypto/${clean}.png`
         }
         if (!tokensMap.has(p.token0.address.toLowerCase())) {
             tokensMap.set(p.token0.address.toLowerCase(), { ...p.token0, logo: getLogo(p.token0.symbol) })

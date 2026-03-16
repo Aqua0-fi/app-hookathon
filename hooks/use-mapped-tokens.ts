@@ -30,6 +30,7 @@ export function useMappedTokens(chain?: string) {
       const getLogo = (symbol: string) => {
         const cleanSymbol = symbol.replace(/^m/, '');
         if (cleanSymbol === 'WBTC') return '/crypto/BTC.png';
+        if (cleanSymbol === 'WETH') return '/crypto/ETH.png';
         return `/crypto/${cleanSymbol}.png`;
       };
 
