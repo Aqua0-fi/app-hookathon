@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useWriteContract, usePublicClient } from 'wagmi'
+import { useWriteContract, usePublicClient, useAccount } from 'wagmi'
 import { parseUnits } from 'viem'
 import {
   TRANCHES_ROUTER,
@@ -17,6 +17,7 @@ export function useTranchesDeposit() {
 
   const { writeContractAsync } = useWriteContract()
   const publicClient = usePublicClient()
+  const { address: account } = useAccount()
 
   const execute = useCallback(async (params: {
     tranche: 0 | 1 // 0 = Senior, 1 = Junior
@@ -40,15 +41,23 @@ export function useTranchesDeposit() {
     // Liquidity = min of the two amounts (simple 1:1 pool heuristic)
     const liquidity = amt0 < amt1 ? amt0 : amt1 > 0n ? amt1 : amt0
 
+    // Get the correct nonce from the chain to avoid stale nonce issues
+    const getNonce = async () => {
+      if (!publicClient || !account) return undefined
+      return await publicClient.getTransactionCount({ address: account, blockTag: 'pending' })
+    }
+
     try {
       // Approve token0 and wait for confirmation
       if (amt0 > 0n) {
         setStep('approving0')
+        const nonce = await getNonce()
         const approve0Hash = await writeContractAsync({
           address: TRANCHES_POOL_KEY.currency0,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [TRANCHES_ROUTER, amt0],
+          nonce,
         })
         await publicClient!.waitForTransactionReceipt({ hash: approve0Hash })
       }
@@ -56,17 +65,20 @@ export function useTranchesDeposit() {
       // Approve token1 and wait for confirmation
       if (amt1 > 0n) {
         setStep('approving1')
+        const nonce = await getNonce()
         const approve1Hash = await writeContractAsync({
           address: TRANCHES_POOL_KEY.currency1,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [TRANCHES_ROUTER, amt1],
+          nonce,
         })
         await publicClient!.waitForTransactionReceipt({ hash: approve1Hash })
       }
 
       // Deposit via new flat-param addLiquidity
       setStep('depositing')
+      const nonce = await getNonce()
       const hash = await writeContractAsync({
         address: TRANCHES_ROUTER,
         abi: TRANCHES_ROUTER_ABI,
@@ -80,6 +92,7 @@ export function useTranchesDeposit() {
           amt1,
           tranche,
         ],
+        nonce,
       })
 
       setStep('confirming')
@@ -90,7 +103,7 @@ export function useTranchesDeposit() {
       setStep('error')
       setError(err instanceof Error ? err.message : 'Deposit failed')
     }
-  }, [writeContractAsync, publicClient])
+  }, [writeContractAsync, publicClient, account])
 
   const reset = useCallback(() => {
     setStep('idle')

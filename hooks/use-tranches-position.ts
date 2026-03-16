@@ -1,5 +1,5 @@
 import { useReadContract, useReadContracts } from 'wagmi'
-import { keccak256, encodePacked } from 'viem'
+import { keccak256, encodePacked, encodeAbiParameters } from 'viem'
 import { useWallet } from '@/contexts/wallet-context'
 import {
   TRANCHES_HOOK,
@@ -8,17 +8,21 @@ import {
 } from '@/lib/contracts'
 
 // Matches Solidity: keccak256(abi.encodePacked(lp, PoolId.unwrap(poolId)))
-// PoolId = keccak256(abi.encode(PoolKey))
+// PoolId = keccak256(abi.encode(PoolKey)) — standard ABI encoding, NOT packed
 function computePoolId(): `0x${string}` {
-  // PoolId is keccak256 of the ABI-encoded PoolKey tuple
   const { currency0, currency1, fee, tickSpacing, hooks } = TRANCHES_POOL_KEY
-  const encoded = keccak256(
-    encodePacked(
-      ['address', 'address', 'uint24', 'int24', 'address'],
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: 'address' },
+        { type: 'address' },
+        { type: 'uint24' },
+        { type: 'int24' },
+        { type: 'address' },
+      ],
       [currency0, currency1, fee, tickSpacing, hooks]
     )
   )
-  return encoded
 }
 
 function computePositionKey(lp: `0x${string}`): `0x${string}` {
