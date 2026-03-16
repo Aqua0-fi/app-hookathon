@@ -67,7 +67,7 @@ function useTokenBalances(address: string | undefined) {
 
 // ─── Stats Section ──────────────────────────────────────────────────────────
 
-function TrancheStats() {
+export function TrancheStats() {
   const { stats, isLoading } = useTranchesStats()
 
   if (isLoading) {
@@ -122,7 +122,7 @@ function TrancheStats() {
 
 // ─── Deposit Section ────────────────────────────────────────────────────────
 
-function TrancheDeposit() {
+export function TrancheDeposit() {
   const { address } = useWallet()
   const [selectedTranche, setSelectedTranche] = useState<0 | 1>(0)
   const [amount0, setAmount0] = useState('')
@@ -266,7 +266,7 @@ function TrancheDeposit() {
 
 // ─── Position Section ───────────────────────────────────────────────────────
 
-function TranchePosition() {
+export function TranchePosition() {
   const { position, hasPosition, isLoading } = useTranchesPosition()
   const claim = useTranchesClaim()
   const remove = useTranchesRemove()

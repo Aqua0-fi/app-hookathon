@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button'
 import { TokenPairIcon } from '@/components/token-icon'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { useV4Pools } from '@/hooks/use-v4-pools'
-import { ArrowLeft, ArrowUpRight, TrendingUp, Info } from 'lucide-react'
+import { ArrowLeft, TrendingUp, Info } from 'lucide-react'
 import { useWallet } from '@/contexts/wallet-context'
 import { ProvideLiquidityModal } from '@/components/pools/provide-liquidity-modal'
+import { TranchesLiquidityModal } from '@/components/pools/tranches-liquidity-modal'
+import { TrancheStats, TranchePosition } from '@/components/pools/tranches-panel'
 import { VisualLiquidityChart } from '@/components/pools/visual-liquidity-chart'
-import { TranchesPanel } from '@/components/pools/tranches-panel'
 import { RSCOracleSimulator } from '@/components/pools/rsc-oracle-simulator'
 import { TRANCHES_HOOK } from '@/lib/contracts'
 
@@ -102,8 +103,7 @@ export default function PoolDetailPage() {
                         <span className="text-sm font-bold text-emerald-400">Just-in-Time Active</span>
                     </div>
                     <Button size="lg" className="gap-2" onClick={() => setIsProvideModalOpen(true)}>
-                        Provide JIT Liquidity
-                        <ArrowUpRight className="h-4 w-4" />
+                        Provide Liquidity
                     </Button>
                 </div>
             </div>
@@ -134,10 +134,17 @@ export default function PoolDetailPage() {
                 <VisualLiquidityChart pool={pool} />
             </div>
 
-            {/* TrancheFi Panel — only for pools using TranchesHook */}
+            {/* TrancheFi Stats + Position — only for TranchesHook pools */}
             {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
-                <div className="mb-8">
-                    <TranchesPanel />
+                <div className="mb-8 space-y-6">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1.5">
+                            <span className="text-sm font-bold text-violet-400">TrancheFi</span>
+                        </div>
+                        <h2 className="text-xl font-bold">Tranche Stats</h2>
+                    </div>
+                    <TrancheStats />
+                    <TranchePosition />
                 </div>
             )}
 
@@ -155,11 +162,18 @@ export default function PoolDetailPage() {
             </div>
 
             {isProvideModalOpen && (
-                <ProvideLiquidityModal
-                    open={isProvideModalOpen}
-                    onOpenChange={setIsProvideModalOpen}
-                    pool={pool}
-                />
+                pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() ? (
+                    <TranchesLiquidityModal
+                        open={isProvideModalOpen}
+                        onOpenChange={setIsProvideModalOpen}
+                    />
+                ) : (
+                    <ProvideLiquidityModal
+                        open={isProvideModalOpen}
+                        onOpenChange={setIsProvideModalOpen}
+                        pool={pool}
+                    />
+                )
             )}
         </div>
     )
