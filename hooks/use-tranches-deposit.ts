@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useWriteContract, usePublicClient } from 'wagmi'
 import { parseUnits } from 'viem'
 import {
   TRANCHES_ROUTER,
@@ -16,11 +16,7 @@ export function useTranchesDeposit() {
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>()
 
   const { writeContractAsync } = useWriteContract()
-  const { data: receipt } = useWaitForTransactionReceipt({ hash: txHash })
-
-  if (receipt && step === 'confirming') {
-    setStep('done')
-  }
+  const publicClient = usePublicClient()
 
   const execute = useCallback(async (params: {
     tranche: 0 | 1 // 0 = Senior, 1 = Junior
@@ -45,26 +41,28 @@ export function useTranchesDeposit() {
     const liquidity = amt0 < amt1 ? amt0 : amt1 > 0n ? amt1 : amt0
 
     try {
-      // Approve token0
+      // Approve token0 and wait for confirmation
       if (amt0 > 0n) {
         setStep('approving0')
-        await writeContractAsync({
+        const approve0Hash = await writeContractAsync({
           address: TRANCHES_POOL_KEY.currency0,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [TRANCHES_ROUTER, amt0],
         })
+        await publicClient!.waitForTransactionReceipt({ hash: approve0Hash })
       }
 
-      // Approve token1
+      // Approve token1 and wait for confirmation
       if (amt1 > 0n) {
         setStep('approving1')
-        await writeContractAsync({
+        const approve1Hash = await writeContractAsync({
           address: TRANCHES_POOL_KEY.currency1,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [TRANCHES_ROUTER, amt1],
         })
+        await publicClient!.waitForTransactionReceipt({ hash: approve1Hash })
       }
 
       // Deposit via new flat-param addLiquidity
@@ -86,11 +84,13 @@ export function useTranchesDeposit() {
 
       setStep('confirming')
       setTxHash(hash)
+      await publicClient!.waitForTransactionReceipt({ hash })
+      setStep('done')
     } catch (err) {
       setStep('error')
       setError(err instanceof Error ? err.message : 'Deposit failed')
     }
-  }, [writeContractAsync])
+  }, [writeContractAsync, publicClient])
 
   const reset = useCallback(() => {
     setStep('idle')
@@ -98,5 +98,5 @@ export function useTranchesDeposit() {
     setTxHash(undefined)
   }, [])
 
-  return { execute, step, error, txHash, receipt, reset }
+  return { execute, step, error, txHash, reset }
 }
