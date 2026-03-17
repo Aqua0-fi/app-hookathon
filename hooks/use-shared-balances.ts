@@ -6,6 +6,7 @@ export interface SharedBalance {
     token: string
     freeBalance: string
     walletBalance: string
+    earnedFees: string
 }
 
 export function useSharedBalances(chainId: number | undefined, address: string | undefined, tokens: string[]) {

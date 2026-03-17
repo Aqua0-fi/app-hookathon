@@ -128,13 +128,16 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
                                     <TokenIcon token={token as any} size="md" />
                                     <div>
                                         <h4 className="font-semibold">{token.symbol}</h4>
-                                        <div className="flex gap-4 mt-1 text-sm font-mono">
+                                        <div className="flex gap-4 mt-1 text-sm font-mono flex-wrap">
                                             <span className="text-muted-foreground">Wallet: {walletFmt}</span>
                                             <span className="text-emerald-500 font-medium">Shared: {freeFmt}</span>
+                                            {bal && BigInt(bal.earnedFees || "0") > 0n && (
+                                                <span className="text-amber-500 font-medium">Fees: {Number(formatUnits(BigInt(bal.earnedFees), token.decimals)).toFixed(4)}</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex gap-2 w-full sm:w-auto">
+                                <div className="flex gap-2 justify-end w-full sm:w-auto flex-wrap mt-3 sm:mt-0">
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -151,6 +154,38 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
                                     >
                                         <ArrowUpFromLine className="mr-1 h-3.5 w-3.5" /> Withdraw
                                     </Button>
+                                    {bal && BigInt(bal.earnedFees || "0") > 0n && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="flex-1 sm:flex-none w-full sm:w-auto mt-2 sm:mt-0 border-amber-500/30 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400"
+                                            onClick={async () => {
+                                                setIsSubmitting(true)
+                                                try {
+                                                    const backendChainId = BACKEND_CHAIN_IDS[chainId!] ?? 696969
+                                                    const { calldata } = await api.post<{ calldata: any }>('v4/lp/prepare-claim-fees', { token: token.address }, { chainId: String(backendChainId) })
+                                                    toast({ title: `Claiming ${token.symbol} Fees...`, description: 'Waiting for wallet confirmation' })
+                                                    const hash = await sendTransactionAsync({
+                                                        to: calldata.to,
+                                                        data: calldata.data,
+                                                        value: calldata.value ? BigInt(calldata.value) : undefined
+                                                    })
+                                                    toast({ title: "Fees Claimed", description: 'Waiting for chain confirmation…' })
+                                                    await publicClient!.waitForTransactionReceipt({ hash })
+                                                    toast({ title: "✅ Fees Successfully Claimed!" })
+                                                    refetch()
+                                                } catch (error: any) {
+                                                    console.error(error)
+                                                    toast({ title: "Claim Failed", description: error.message || "Unknown error", variant: "destructive" })
+                                                } finally {
+                                                    setIsSubmitting(false)
+                                                }
+                                            }}
+                                            disabled={isSubmitting}
+                                        >
+                                            🏆 Claim Fees
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         )

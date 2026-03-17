@@ -26,8 +26,7 @@ import { useV4Pools } from '@/hooks/use-v4-pools'
 import { useUserPositions } from '@/hooks/use-user-positions'
 import { VisualLiquidityChart } from '@/components/pools/visual-liquidity-chart'
 import { formatUnits } from 'viem'
-
-// Mock Transactions
+import { useSharedBalances } from '@/hooks/use-shared-balances'
 
 // Mock Transactions
 const MOCK_TRANSACTIONS = [
@@ -56,6 +55,20 @@ export default function DashboardPage() {
     const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 84532)
     const { data: pools } = useV4Pools(activeChainId)
     const { data: userPositions, isLoading: isPositionsLoading } = useUserPositions(activeChainId)
+
+    // Extract all unique tokens from all pools to check fees
+    const tokenAddresses = Array.from(new Set(pools?.flatMap(p => [p.token0.address, p.token1.address]) || []))
+    const { data: balances } = useSharedBalances(activeChainId, address || undefined, tokenAddresses)
+
+    // Very naive USD conversion placeholder for fees (treating all tokens as 1:1 USD for MVP demo purposes or just summing them up)
+    // In a real app we would multiply by token price.
+    const totalEarnedFeesUsd = balances?.reduce((acc, bal) => {
+        const token = pools?.flatMap(p => [p.token0, p.token1]).find(t => t.address.toLowerCase() === bal.token.toLowerCase())
+        if (!token || !bal.earnedFees) return acc
+        // MVP Placeholder: Assume 1 token = $1 or just sum raw units to show *something* changing
+        // A better approach would be to use currentPrice, but we'll just sum formatted amounts for demo
+        return acc + Number(formatUnits(BigInt(bal.earnedFees), token.decimals))
+    }, 0) || 0
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -144,7 +157,7 @@ export default function DashboardPage() {
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-8">
                     {[
                         { label: 'Virtual Positions', value: (userPositions?.length || 0).toString() },
-                        { label: 'Uncollected Fees', value: `+${formatCurrency(0)}`, color: 'text-emerald-400' }, // Placeholder MVP
+                        { label: 'Uncollected Fees (Raw Sum MVP)', value: `+${totalEarnedFeesUsd.toFixed(4)}`, color: 'text-emerald-400' }, // Placeholder MVP summation
                         { label: 'Active JIT Pools', value: new Set(userPositions?.map(p => p.poolId)).size.toString() },
                         { label: 'Average APY', value: "N/A", color: 'text-emerald-400' }, // Placeholder MVP
                     ].map((stat) => (
@@ -207,7 +220,17 @@ export default function DashboardPage() {
                                                     </div>
                                                     <div>
                                                         <span className="text-muted-foreground block mb-1">Earned Fees</span>
-                                                        <p className="font-semibold tabular-nums text-emerald-400">+{formatCurrency(0)}</p>
+                                                        <p className="font-semibold tabular-nums text-emerald-400">
+                                                            +{(
+                                                                (balances?.find(b => b.token.toLowerCase() === pool.token0.address.toLowerCase()) ?
+                                                                    Number(formatUnits(BigInt(balances.find(b => b.token.toLowerCase() === pool.token0.address.toLowerCase())!.earnedFees), pool.token0.decimals)).toFixed(4) : "0.0000")
+                                                                + " " + pool.token0.symbol
+                                                            )} / +{(
+                                                                (balances?.find(b => b.token.toLowerCase() === pool.token1.address.toLowerCase()) ?
+                                                                    Number(formatUnits(BigInt(balances.find(b => b.token.toLowerCase() === pool.token1.address.toLowerCase())!.earnedFees), pool.token1.decimals)).toFixed(4) : "0.0000")
+                                                                + " " + pool.token1.symbol
+                                                            )}
+                                                        </p>
                                                     </div>
                                                     <div>
                                                         <span className="text-[10px] font-mono text-muted-foreground/60 block mt-1">ID: {pos.positionId.slice(0, 10)}...</span>
