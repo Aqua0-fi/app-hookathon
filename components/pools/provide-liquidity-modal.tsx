@@ -247,26 +247,12 @@ export function ProvideLiquidityModal({
         try {
             setIsSubmitting(true)
 
-            // 1. Calculate amounts to return for UI / API
-            const sqrtRatioX96 = BigInt(pool.sqrtPriceX96)
-            const sqrtRatioAX96 = getSqrtRatioAtTick(pos.tickLower)
-            const sqrtRatioBX96 = getSqrtRatioAtTick(pos.tickUpper)
-
-            const [amt0, amt1] = getAmountsForLiquidity(
-                sqrtRatioX96,
-                sqrtRatioAX96,
-                sqrtRatioBX96,
-                BigInt(pos.liquidityShares)
-            );
-
-            // 2. Fetch remove calldata
+            // 1. Fetch remove calldata
             const backendChainId = BACKEND_CHAIN_IDS[chainId!] ?? 696969
             const { calldata } = await api.post<{ calldata: any }>('v4/lp/prepare-remove-position', {
                 poolKey: pool.poolKey,
                 tickLower: pos.tickLower,
                 tickUpper: pos.tickUpper,
-                token0Return: amt0.toString(),
-                token1Return: amt1.toString(),
             }, { chainId: String(backendChainId) })
 
             // 3. Send transaction
