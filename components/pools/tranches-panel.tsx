@@ -132,14 +132,14 @@ export function TrancheDeposit({ poolPrice = 2000 }: { poolPrice?: number }) {
   const deposit = useTranchesDeposit()
   const { balance0, balance1 } = useTokenBalances(address ?? undefined)
 
-  // currency0 = mWETH (lower address), currency1 = mUSDC (higher address)
+  // currency0 = mUSDC (lower address), currency1 = mWETH (higher address)
   const handleAmount0Change = (val: string) => {
     setAmount0(val)
     setLastEdited('amount0')
     const num = parseFloat(val)
     if (!isNaN(num) && num > 0 && poolPrice > 0) {
-      // mWETH entered → derive mUSDC (multiply by price)
-      setAmount1((num * poolPrice).toFixed(2))
+      // mUSDC entered → derive mWETH (divide by price)
+      setAmount1((num / poolPrice).toFixed(6))
     } else {
       setAmount1('')
     }
@@ -150,8 +150,8 @@ export function TrancheDeposit({ poolPrice = 2000 }: { poolPrice?: number }) {
     setLastEdited('amount1')
     const num = parseFloat(val)
     if (!isNaN(num) && num > 0 && poolPrice > 0) {
-      // mUSDC entered → derive mWETH (divide by price)
-      setAmount0((num / poolPrice).toFixed(6))
+      // mWETH entered → derive mUSDC (multiply by price)
+      setAmount0((num * poolPrice).toFixed(2))
     } else {
       setAmount0('')
     }
@@ -170,8 +170,8 @@ export function TrancheDeposit({ poolPrice = 2000 }: { poolPrice?: number }) {
 
   const stepLabel: Record<string, string> = {
     idle: '',
-    approving0: 'Approving mWETH...',
-    approving1: 'Approving mUSDC...',
+    approving0: 'Approving mUSDC...',
+    approving1: 'Approving mWETH...',
     depositing: 'Depositing into tranche...',
     confirming: 'Confirming transaction...',
     done: 'Deposit successful!',
@@ -232,7 +232,7 @@ export function TrancheDeposit({ poolPrice = 2000 }: { poolPrice?: number }) {
       <div className="space-y-3">
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs uppercase tracking-wider text-muted-foreground">mWETH Amount</label>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">mUSDC Amount</label>
             <button
               onClick={() => handleAmount0Change(formatUnits(balance0, 18))}
               className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -252,7 +252,7 @@ export function TrancheDeposit({ poolPrice = 2000 }: { poolPrice?: number }) {
         </div>
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs uppercase tracking-wider text-muted-foreground">mUSDC Amount</label>
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">mWETH Amount</label>
             <button
               onClick={() => handleAmount1Change(formatUnits(balance1, 18))}
               className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -338,6 +338,7 @@ export function TranchePosition() {
     claiming: 'Claiming fees...',
     withdrawing0: 'Withdrawing mUSDC...',
     withdrawing1: 'Withdrawing mWETH...',
+
     confirming: 'Confirming...',
     done: 'Fees withdrawn!',
     error: claim.error || 'Error',
@@ -387,6 +388,7 @@ export function TranchePosition() {
           <div className="text-sm font-medium space-y-0.5">
             <p>{fmt(position.pendingFees.token0)} mUSDC</p>
             <p>{fmt(position.pendingFees.token1)} mWETH</p>
+
           </div>
         </div>
         <div>
