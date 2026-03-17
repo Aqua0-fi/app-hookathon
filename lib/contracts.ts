@@ -8,10 +8,13 @@ export const SWAP_VM_ROUTER: Address = '0xB9818483D01ca0e721849703C58148CFb81328
 export const USE_AQUA_BIT = '28948022309329048855892746252171976963317496166410141009864396001978282409984'
 
 // Backend chain ID mapping (matches API query param expectations)
-export const BACKEND_CHAIN_IDS: Record<string, number> = {
+export const BACKEND_CHAIN_IDS: Record<string | number, number> = {
   base: 8453,
-  unichain: 130,
+  unichain: 1301,
   local: 696969,
+  84532: 84532,
+  1301: 1301,
+  696969: 696969,
 }
 
 /**
