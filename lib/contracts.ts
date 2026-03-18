@@ -99,8 +99,8 @@ export const POOL_MANAGER: Address = '0x00B036B58a818B1BC34d502D3fE730Db729e62AC
 
 // ─── TrancheFi (Unichain Sepolia) ─────────────────────────────────────────────
 
-export const TRANCHES_HOOK: Address = '0x21B626Ec964251B35136459a9CdaA2B6C509d5C5'
-export const TRANCHES_ROUTER: Address = '0xe9cb161ddD93D5d4354917282C5f8C6A682671e2'
+export const TRANCHES_HOOK: Address = '0x7192b32948f5fa5Dc969c3070075b3031fFF15c5'
+export const TRANCHES_ROUTER: Address = '0x9Ec4391ba3BcD65239AB286dAC60DD3D25a831e9'
 export const TRANCHES_SHARED_POOL: Address = '0xAaa6937e7297FC243e18bD726e71E38f511D4830'
 
 // Global Aqua0 mock token addresses (Unichain Sepolia)
@@ -110,7 +110,7 @@ export const TRANCHES_POOL_KEY = {
   currency1: '0x7fF28651365c735c22960E27C2aFA97AbE4Cf2Ad' as Address, // mWETH
   fee: 3000,
   tickSpacing: 60,
-  hooks: '0x21B626Ec964251B35136459a9CdaA2B6C509d5C5' as Address,
+  hooks: '0x7192b32948f5fa5Dc969c3070075b3031fFF15c5' as Address,
 } as const
 
 const POOL_KEY_TUPLE = {
