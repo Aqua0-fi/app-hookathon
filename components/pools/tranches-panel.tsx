@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { formatUnits, parseUnits } from 'viem'
 import { useReadContracts } from 'wagmi'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useWallet } from '@/contexts/wallet-context'
@@ -23,6 +24,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Shield,
+  Zap,
   Wallet,
   Info,
 } from 'lucide-react'
@@ -132,6 +134,71 @@ export function TrancheStats() {
           <p className="text-xl font-bold">{seniorPct.toFixed(1)}%</p>
           <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden mb-1">
             <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${seniorPct}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Tranche Split Pie Chart — full width row */}
+      <div className="col-span-2 md:col-span-3 rounded-xl border border-border/50 bg-secondary/10 p-5">
+        <p className="text-sm font-semibold text-white mb-4">Tranche Split</p>
+        <div className="flex flex-col items-center gap-6 md:flex-row md:justify-around">
+          <div className="h-52 w-52">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Senior', value: Number(formatUnits(seniorMWETH, 18)) || 0.001 },
+                    { name: 'Junior', value: Number(formatUnits(juniorMWETH, 18)) || 0.001 },
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={4}
+                  dataKey="value"
+                  strokeWidth={0}
+                >
+                  <Cell fill="#3b82f6" />
+                  <Cell fill="#f97316" />
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '12px',
+                  }}
+                  formatter={(value: number) => value.toFixed(4) + ' mWETH'}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {/* Senior legend */}
+            <div className="flex items-center gap-3 rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 min-w-[200px]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                <Shield className="h-4 w-4 text-blue-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] text-blue-400/60">Senior Liquidity</p>
+                <p className="text-sm font-bold text-blue-300">{fmt(seniorMWETH)} mWETH</p>
+              </div>
+              <span className="text-xs font-bold text-blue-400">{seniorPct.toFixed(1)}%</span>
+            </div>
+
+            {/* Junior legend */}
+            <div className="flex items-center gap-3 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3 min-w-[200px]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/10">
+                <Zap className="h-4 w-4 text-orange-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] text-orange-400/60">Junior Liquidity</p>
+                <p className="text-sm font-bold text-orange-300">{fmt(juniorMWETH)} mWETH</p>
+              </div>
+              <span className="text-xs font-bold text-orange-400">{(100 - seniorPct).toFixed(1)}%</span>
+            </div>
           </div>
         </div>
       </div>
