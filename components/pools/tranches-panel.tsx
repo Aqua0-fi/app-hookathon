@@ -69,27 +69,19 @@ function useTokenBalances(address: string | undefined) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function liquidityToTokens(liquidity: bigint, sqrtPriceX96: bigint): { mWETH: string; mUSDC: string } {
-  if (liquidity === 0n || sqrtPriceX96 === 0n) return { mWETH: '0', mUSDC: '0' }
-  const Q96 = 1n << 96n
-  // amount0 (mUSDC — lower address = currency0) = L * Q96 / sqrtPrice
-  const amount0 = liquidity * Q96 / sqrtPriceX96
-  // amount1 (mWETH — higher address = currency1) = L * sqrtPrice / Q96
-  const amount1 = liquidity * sqrtPriceX96 / Q96
-  return {
-    mUSDC: fmt(amount0),
-    mWETH: fmt(amount1),
-  }
+function liquidityShare(trancheLiquidity: bigint, totalLiquidity: bigint, poolBalance: bigint): bigint {
+  if (totalLiquidity === 0n) return 0n
+  return trancheLiquidity * poolBalance / totalLiquidity
 }
 
 // ─── Stats Section ──────────────────────────────────────────────────────────
 
 export function TrancheStats() {
   const { stats, isLoading } = useTranchesStats()
-  const { sqrtPriceX96: sqrtPriceStr } = useTranchesPoolLiquidity()
-  const sqrtPriceX96 = BigInt(sqrtPriceStr || '0')
+  // Read real token balances from our SharedLiquidityPool
+  const { balance0: poolMUSDC, balance1: poolMWETH, isLoading: balLoading } = useTokenBalances(TRANCHES_SHARED_POOL)
 
-  if (isLoading) {
+  if (isLoading || balLoading) {
     return (
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {[1, 2, 3, 4, 5, 6].map(i => (
@@ -104,20 +96,23 @@ export function TrancheStats() {
   const totalLiq = stats.totalSenior + stats.totalJunior
   const seniorPct = totalLiq > 0n ? Number(stats.totalSenior * 10000n / totalLiq) / 100 : 0
 
-  const seniorTokens = liquidityToTokens(stats.totalSenior, sqrtPriceX96)
-  const juniorTokens = liquidityToTokens(stats.totalJunior, sqrtPriceX96)
+  // Distribute real pool balances proportionally by tranche liquidity
+  const seniorMWETH = liquidityShare(stats.totalSenior, totalLiq, poolMWETH)
+  const seniorMUSDC = liquidityShare(stats.totalSenior, totalLiq, poolMUSDC)
+  const juniorMWETH = liquidityShare(stats.totalJunior, totalLiq, poolMWETH)
+  const juniorMUSDC = liquidityShare(stats.totalJunior, totalLiq, poolMUSDC)
 
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
         <p className="text-[10px] uppercase tracking-wider text-blue-400">Senior Liquidity</p>
-        <p className="mt-1 text-xl font-bold text-blue-300">{seniorTokens.mWETH} <span className="text-xs font-normal text-blue-400/60">mWETH</span></p>
-        <p className="text-xs text-blue-400/50">{seniorTokens.mUSDC} mUSDC</p>
+        <p className="mt-1 text-xl font-bold text-blue-300">{fmt(seniorMWETH)} <span className="text-xs font-normal text-blue-400/60">mWETH</span></p>
+        <p className="text-xs text-blue-400/50">{fmt(seniorMUSDC)} mUSDC</p>
       </div>
       <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
         <p className="text-[10px] uppercase tracking-wider text-orange-400">Junior Liquidity</p>
-        <p className="mt-1 text-xl font-bold text-orange-300">{juniorTokens.mWETH} <span className="text-xs font-normal text-orange-400/60">mWETH</span></p>
-        <p className="text-xs text-orange-400/50">{juniorTokens.mUSDC} mUSDC</p>
+        <p className="mt-1 text-xl font-bold text-orange-300">{fmt(juniorMWETH)} <span className="text-xs font-normal text-orange-400/60">mWETH</span></p>
+        <p className="text-xs text-orange-400/50">{fmt(juniorMUSDC)} mUSDC</p>
       </div>
       <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Senior Target APY</p>
