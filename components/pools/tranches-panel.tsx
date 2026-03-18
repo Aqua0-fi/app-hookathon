@@ -329,6 +329,8 @@ export function TrancheDeposit({ poolPrice = 2000 }: { poolPrice?: number }) {
 
 export function TranchePosition() {
   const { position, hasPosition, isLoading } = useTranchesPosition()
+  const { stats } = useTranchesStats()
+  const { balance0: poolMUSDC, balance1: poolMWETH } = useTokenBalances(TRANCHES_SHARED_POOL)
   const claim = useTranchesClaim()
   const remove = useTranchesRemove()
 
@@ -398,8 +400,18 @@ export function TranchePosition() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Liquidity</p>
-          <p className="text-lg font-bold">{fmt(position.amount)}</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Your Liquidity</p>
+          {(() => {
+            const totalLiq = (stats?.totalSenior ?? 0n) + (stats?.totalJunior ?? 0n)
+            const myMWETH = liquidityShare(position.amount, totalLiq, poolMWETH)
+            const myMUSDC = liquidityShare(position.amount, totalLiq, poolMUSDC)
+            return (
+              <div className="text-sm font-medium space-y-0.5">
+                <p className="text-lg font-bold">{fmt(myMWETH)} <span className="text-xs font-normal text-muted-foreground">mWETH</span></p>
+                <p className="text-xs text-muted-foreground">{fmt(myMUSDC)} mUSDC</p>
+              </div>
+            )
+          })()}
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pending Fees</p>
