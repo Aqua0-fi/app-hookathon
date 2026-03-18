@@ -85,11 +85,11 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
                     const { calldata: aprvCall } = await api.post<{ calldata: any }>('v4/lp/prepare-approve', { token: activeToken.address, amount: amountRaw }, { chainId: String(backendChainId) })
                     await sendAndWait(aprvCall, `Approve ${activeToken.symbol}`)
                 }
-                const { calldata: depCall } = await api.post<{ calldata: any }>('v4/lp/prepare-deposit', { token: activeToken.address, amount: amountRaw }, { chainId: String(backendChainId) })
+                const { calldata: depCall } = await api.post<{ calldata: any }>('v4/lp/prepare-deposit', { token: activeToken.address, amount: amountRaw, to: address }, { chainId: String(backendChainId) })
                 await sendAndWait(depCall, `Deposit ${activeToken.symbol}`)
                 toast({ title: "✅ Deposit Successful!" })
             } else {
-                const { calldata: withCall } = await api.post<{ calldata: any }>('v4/lp/prepare-withdraw', { token: activeToken.address, amount: amountRaw }, { chainId: String(backendChainId) })
+                const { calldata: withCall } = await api.post<{ calldata: any }>('v4/lp/prepare-withdraw', { token: activeToken.address, amount: amountRaw, from: address, to: address }, { chainId: String(backendChainId) })
                 await sendAndWait(withCall, `Withdraw ${activeToken.symbol}`)
                 toast({ title: "✅ Withdrawal Successful!" })
             }
@@ -163,7 +163,7 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
                                                 setIsSubmitting(true)
                                                 try {
                                                     const backendChainId = BACKEND_CHAIN_IDS[chainId!] ?? 696969
-                                                    const { calldata } = await api.post<{ calldata: any }>('v4/lp/prepare-claim-fees', { token: token.address }, { chainId: String(backendChainId) })
+                                                    const { calldata } = await api.post<{ calldata: any }>('v4/lp/prepare-claim-fees', { token: token.address, from: address, to: address }, { chainId: String(backendChainId) })
                                                     toast({ title: `Claiming ${token.symbol} Fees...`, description: 'Waiting for wallet confirmation' })
                                                     const hash = await sendTransactionAsync({
                                                         to: calldata.to,

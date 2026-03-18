@@ -178,7 +178,7 @@ export function ProvideLiquidityModal({
                     const { calldata: aprvCall } = await api.post<{ calldata: any }>('v4/lp/prepare-approve', { token: token0.address, amount: req0.toString() }, { chainId: String(backendChainId) });
                     await sendAndWait(aprvCall, `Approve ${token0.symbol}`)
                 }
-                const { calldata: depCall } = await api.post<{ calldata: any }>('v4/lp/prepare-deposit', { token: token0.address, amount: req0.toString() }, { chainId: String(backendChainId) });
+                const { calldata: depCall } = await api.post<{ calldata: any }>('v4/lp/prepare-deposit', { token: token0.address, amount: req0.toString(), to: address }, { chainId: String(backendChainId) });
                 await sendAndWait(depCall, `Deposit ${token0.symbol}`)
             }
 
@@ -188,7 +188,7 @@ export function ProvideLiquidityModal({
                     const { calldata: aprvCall } = await api.post<{ calldata: any }>('v4/lp/prepare-approve', { token: token1.address, amount: req1.toString() }, { chainId: String(backendChainId) });
                     await sendAndWait(aprvCall, `Approve ${token1.symbol}`)
                 }
-                const { calldata: depCall } = await api.post<{ calldata: any }>('v4/lp/prepare-deposit', { token: token1.address, amount: req1.toString() }, { chainId: String(backendChainId) });
+                const { calldata: depCall } = await api.post<{ calldata: any }>('v4/lp/prepare-deposit', { token: token1.address, amount: req1.toString(), to: address }, { chainId: String(backendChainId) });
                 await sendAndWait(depCall, `Deposit ${token1.symbol}`)
             }
 
@@ -218,7 +218,8 @@ export function ProvideLiquidityModal({
                 tickUpper: tickUpperInt,
                 liquidity,
                 token0Amount: amt0Raw,
-                token1Amount: amt1Raw
+                token1Amount: amt1Raw,
+                owner: address
             }, { chainId: String(backendChainId) });
 
             await sendAndWait(addCall, 'Add Position')
@@ -253,6 +254,7 @@ export function ProvideLiquidityModal({
                 poolKey: pool.poolKey,
                 tickLower: pos.tickLower,
                 tickUpper: pos.tickUpper,
+                owner: address
             }, { chainId: String(backendChainId) })
 
             // 3. Send transaction
