@@ -12,7 +12,7 @@ import { useTranchesPosition } from '@/hooks/use-tranches-position'
 import { useTranchesDeposit } from '@/hooks/use-tranches-deposit'
 import { useTranchesClaim } from '@/hooks/use-tranches-claim'
 import { useTranchesRemove } from '@/hooks/use-tranches-remove'
-import { TRANCHES_POOL_KEY, ERC20_ABI } from '@/lib/contracts'
+import { TRANCHES_POOL_KEY, TRANCHES_SHARED_POOL, ERC20_ABI } from '@/lib/contracts'
 import {
   ShieldCheck,
   Flame,
