@@ -163,14 +163,8 @@ export default function PoolDetailPage() {
                 </div>
             </div>
 
-            {/* Virtual Liquidity Chart */}
-            <div className="mb-8">
-                <h2 className="text-xl font-bold mb-4">Virtual Liquidity Distribution</h2>
-                <VisualLiquidityChart pool={pool} />
-            </div>
-
-            {/* TrancheFi Stats + Position — only for TranchesHook pools */}
-            {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() && (
+            {/* Virtual Liquidity Chart — show Tranches distribution for TranchesHook pools */}
+            {pool.poolKey.hooks.toLowerCase() === TRANCHES_HOOK.toLowerCase() ? (
                 <div className="mb-8 space-y-6">
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5 rounded-full bg-violet-500/10 px-3 py-1.5">
@@ -180,6 +174,11 @@ export default function PoolDetailPage() {
                     </div>
                     <TrancheStats />
                     <TranchePosition />
+                </div>
+            ) : (
+                <div className="mb-8">
+                    <h2 className="text-xl font-bold mb-4">Virtual Liquidity Distribution</h2>
+                    <VisualLiquidityChart pool={pool} />
                 </div>
             )}
 
