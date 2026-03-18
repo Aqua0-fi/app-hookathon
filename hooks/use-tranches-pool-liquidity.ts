@@ -1,5 +1,5 @@
 import { useReadContracts } from 'wagmi'
-import { keccak256, encodePacked, type Address } from 'viem'
+import { keccak256, encodePacked, encodeAbiParameters, parseAbiParameters, type Address } from 'viem'
 import { POOL_MANAGER, TRANCHES_POOL_KEY } from '@/lib/contracts'
 
 // PoolManager stores pool state in a mapping at slot 6:
@@ -19,10 +19,9 @@ const POOL_MANAGER_ABI = [
 ] as const
 
 function computePoolId(key: typeof TRANCHES_POOL_KEY): `0x${string}` {
-  // PoolId = keccak256(abi.encode(PoolKey))
-  // We use encodePacked equivalent via ABI encoding
-  const encoded = encodePacked(
-    ['address', 'address', 'uint24', 'int24', 'address'],
+  // PoolId = keccak256(abi.encode(PoolKey)) — must use abi.encode, NOT encodePacked
+  const encoded = encodeAbiParameters(
+    parseAbiParameters('address, address, uint24, int24, address'),
     [key.currency0, key.currency1, key.fee, key.tickSpacing, key.hooks]
   )
   return keccak256(encoded)

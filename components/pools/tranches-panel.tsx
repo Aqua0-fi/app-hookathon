@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useWallet } from '@/contexts/wallet-context'
 import { useTranchesStats } from '@/hooks/use-tranches-stats'
+import { useTranchesPoolLiquidity } from '@/hooks/use-tranches-pool-liquidity'
 import { useTranchesPosition } from '@/hooks/use-tranches-position'
 import { useTranchesDeposit } from '@/hooks/use-tranches-deposit'
 import { useTranchesClaim } from '@/hooks/use-tranches-claim'
@@ -66,10 +67,27 @@ function useTokenBalances(address: string | undefined) {
   }
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function liquidityToTokens(liquidity: bigint, sqrtPriceX96: bigint): { mWETH: string; mUSDC: string } {
+  if (liquidity === 0n || sqrtPriceX96 === 0n) return { mWETH: '0', mUSDC: '0' }
+  const Q96 = 1n << 96n
+  // amount0 (mUSDC — lower address = currency0) = L * Q96 / sqrtPrice
+  const amount0 = liquidity * Q96 / sqrtPriceX96
+  // amount1 (mWETH — higher address = currency1) = L * sqrtPrice / Q96
+  const amount1 = liquidity * sqrtPriceX96 / Q96
+  return {
+    mUSDC: fmt(amount0),
+    mWETH: fmt(amount1),
+  }
+}
+
 // ─── Stats Section ──────────────────────────────────────────────────────────
 
 export function TrancheStats() {
   const { stats, isLoading } = useTranchesStats()
+  const { sqrtPriceX96: sqrtPriceStr } = useTranchesPoolLiquidity()
+  const sqrtPriceX96 = BigInt(sqrtPriceStr || '0')
 
   if (isLoading) {
     return (
@@ -86,15 +104,20 @@ export function TrancheStats() {
   const totalLiq = stats.totalSenior + stats.totalJunior
   const seniorPct = totalLiq > 0n ? Number(stats.totalSenior * 10000n / totalLiq) / 100 : 0
 
+  const seniorTokens = liquidityToTokens(stats.totalSenior, sqrtPriceX96)
+  const juniorTokens = liquidityToTokens(stats.totalJunior, sqrtPriceX96)
+
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
         <p className="text-[10px] uppercase tracking-wider text-blue-400">Senior Liquidity</p>
-        <p className="mt-1 text-xl font-bold text-blue-300">{fmt(stats.totalSenior)}</p>
+        <p className="mt-1 text-xl font-bold text-blue-300">{seniorTokens.mWETH} <span className="text-xs font-normal text-blue-400/60">mWETH</span></p>
+        <p className="text-xs text-blue-400/50">{seniorTokens.mUSDC} mUSDC</p>
       </div>
       <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
         <p className="text-[10px] uppercase tracking-wider text-orange-400">Junior Liquidity</p>
-        <p className="mt-1 text-xl font-bold text-orange-300">{fmt(stats.totalJunior)}</p>
+        <p className="mt-1 text-xl font-bold text-orange-300">{juniorTokens.mWETH} <span className="text-xs font-normal text-orange-400/60">mWETH</span></p>
+        <p className="text-xs text-orange-400/50">{juniorTokens.mUSDC} mUSDC</p>
       </div>
       <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Senior Target APY</p>
