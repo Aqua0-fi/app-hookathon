@@ -176,11 +176,14 @@ export function TrancheStats() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+        <div className="group relative rounded-xl border border-border/50 bg-secondary/20 p-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Senior Target APY</p>
           <p className="mt-1 text-xl font-bold text-emerald-400">{bipsToPercent(stats.seniorAPY)}%</p>
+          <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 rounded-lg bg-[#1a1a2e] border border-white/10 px-3 py-1.5 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            The guaranteed annual yield for Senior LPs. Fees are distributed to Senior first until this target is met.
+          </div>
         </div>
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+        <div className="group relative rounded-xl border border-border/50 bg-secondary/20 p-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Senior Ratio</p>
           <div className="mt-1 flex items-end gap-2">
             <p className="text-xl font-bold">{seniorPct.toFixed(1)}%</p>
@@ -188,14 +191,23 @@ export function TrancheStats() {
               <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${seniorPct}%` }} />
             </div>
           </div>
+          <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 rounded-lg bg-[#1a1a2e] border border-white/10 px-3 py-1.5 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            Percentage of total pool liquidity allocated to the Senior tranche.
+          </div>
         </div>
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+        <div className="group relative rounded-xl border border-border/50 bg-secondary/20 p-4">
           <p className="text-[10px] uppercase tracking-wider text-blue-400/60">Senior Fees</p>
           <p className="mt-1 text-xl font-bold">{fmt(stats.seniorFees)}</p>
+          <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 rounded-lg bg-[#1a1a2e] border border-white/10 px-3 py-1.5 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            Total swap fees distributed to Senior LPs so far.
+          </div>
         </div>
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+        <div className="group relative rounded-xl border border-border/50 bg-secondary/20 p-4">
           <p className="text-[10px] uppercase tracking-wider text-orange-400/60">Junior Fees</p>
           <p className="mt-1 text-xl font-bold">{fmt(stats.juniorFees)}</p>
+          <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 rounded-lg bg-[#1a1a2e] border border-white/10 px-3 py-1.5 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+            Surplus fees after Senior target is met. Junior gets all remaining swap fees.
+          </div>
         </div>
       </div>
     </div>
