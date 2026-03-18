@@ -10,7 +10,7 @@ import { POOL_MANAGER, TRANCHES_POOL_KEY } from '@/lib/contracts'
 
 const POOL_MANAGER_ABI = [
   {
-    name: 'exttload',
+    name: 'extsload',
     type: 'function',
     stateMutability: 'view',
     inputs: [{ name: 'slot', type: 'bytes32' }],
@@ -54,13 +54,13 @@ export function useTranchesPoolLiquidity() {
       {
         address: POOL_MANAGER,
         abi: POOL_MANAGER_ABI,
-        functionName: 'exttload',
+        functionName: 'extsload',
         args: [slot0Key],
       },
       {
         address: POOL_MANAGER,
         abi: POOL_MANAGER_ABI,
-        functionName: 'exttload',
+        functionName: 'extsload',
         args: [liquiditySlotHex],
       },
     ],
