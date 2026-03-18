@@ -105,42 +105,10 @@ export function TrancheStats() {
   const juniorMUSDC = liquidityShare(stats.totalJunior, totalLiq, poolMUSDC)
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
-        <p className="text-[10px] uppercase tracking-wider text-blue-400">Senior Liquidity</p>
-        <p className="mt-1 text-xl font-bold text-blue-300">{fmt(seniorMWETH)} <span className="text-xs font-normal text-blue-400/60">mWETH</span></p>
-        <p className="text-xs text-blue-400/50">{fmt(seniorMUSDC)} mUSDC</p>
-      </div>
-      <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
-        <p className="text-[10px] uppercase tracking-wider text-orange-400">Junior Liquidity</p>
-        <p className="mt-1 text-xl font-bold text-orange-300">{fmt(juniorMWETH)} <span className="text-xs font-normal text-orange-400/60">mWETH</span></p>
-        <p className="text-xs text-orange-400/50">{fmt(juniorMUSDC)} mUSDC</p>
-      </div>
-      <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Senior Target APY</p>
-        <p className="mt-1 text-xl font-bold">{bipsToPercent(stats.seniorAPY)}%</p>
-      </div>
-      <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
-        <p className="text-[10px] uppercase tracking-wider text-blue-400">Senior Fees</p>
-        <p className="mt-1 text-xl font-bold text-blue-300">{fmt(stats.seniorFees)}</p>
-      </div>
-      <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4">
-        <p className="text-[10px] uppercase tracking-wider text-orange-400">Junior Fees</p>
-        <p className="mt-1 text-xl font-bold text-orange-300">{fmt(stats.juniorFees)}</p>
-      </div>
-      <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Senior Ratio</p>
-        <div className="mt-1 flex items-end gap-2">
-          <p className="text-xl font-bold">{seniorPct.toFixed(1)}%</p>
-          <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden mb-1">
-            <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${seniorPct}%` }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Tranche Split Pie Chart — full width row */}
-      <div className="col-span-2 md:col-span-3 rounded-xl border border-border/50 bg-secondary/10 p-5">
-        <p className="text-sm font-semibold text-white mb-4">Tranche Split</p>
+    <div className="space-y-4">
+      {/* Tranche Split — pie chart + legends */}
+      <div className="rounded-xl border border-border/50 bg-secondary/20 p-5">
+        <p className="text-sm font-semibold mb-4">Tranche Split</p>
         <div className="flex flex-col items-center gap-6 md:flex-row md:justify-around">
           <div className="h-52 w-52">
             <ResponsiveContainer width="100%" height="100%">
@@ -176,30 +144,55 @@ export function TrancheStats() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {/* Senior legend */}
-            <div className="flex items-center gap-3 rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3 min-w-[200px]">
+            <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-secondary/20 px-4 py-3 min-w-[220px]">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
                 <Shield className="h-4 w-4 text-blue-400" />
               </div>
               <div className="flex-1">
-                <p className="text-[10px] text-blue-400/60">Senior Liquidity</p>
-                <p className="text-sm font-bold text-blue-300">{fmt(seniorMWETH)} mWETH</p>
+                <p className="text-[10px] text-muted-foreground">Senior Liquidity</p>
+                <p className="text-sm font-bold">{fmt(seniorMWETH)} <span className="text-xs font-normal text-muted-foreground">mWETH</span></p>
+                <p className="text-[10px] text-muted-foreground">{fmt(seniorMUSDC)} mUSDC</p>
               </div>
               <span className="text-xs font-bold text-blue-400">{seniorPct.toFixed(1)}%</span>
             </div>
 
-            {/* Junior legend */}
-            <div className="flex items-center gap-3 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3 min-w-[200px]">
+            <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-secondary/20 px-4 py-3 min-w-[220px]">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-500/10">
                 <Zap className="h-4 w-4 text-orange-400" />
               </div>
               <div className="flex-1">
-                <p className="text-[10px] text-orange-400/60">Junior Liquidity</p>
-                <p className="text-sm font-bold text-orange-300">{fmt(juniorMWETH)} mWETH</p>
+                <p className="text-[10px] text-muted-foreground">Junior Liquidity</p>
+                <p className="text-sm font-bold">{fmt(juniorMWETH)} <span className="text-xs font-normal text-muted-foreground">mWETH</span></p>
+                <p className="text-[10px] text-muted-foreground">{fmt(juniorMUSDC)} mUSDC</p>
               </div>
               <span className="text-xs font-bold text-orange-400">{(100 - seniorPct).toFixed(1)}%</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Senior Target APY</p>
+          <p className="mt-1 text-xl font-bold text-emerald-400">{bipsToPercent(stats.seniorAPY)}%</p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Senior Ratio</p>
+          <div className="mt-1 flex items-end gap-2">
+            <p className="text-xl font-bold">{seniorPct.toFixed(1)}%</p>
+            <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden mb-1">
+              <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${seniorPct}%` }} />
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-blue-400/60">Senior Fees</p>
+          <p className="mt-1 text-xl font-bold">{fmt(stats.seniorFees)}</p>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-orange-400/60">Junior Fees</p>
+          <p className="mt-1 text-xl font-bold">{fmt(stats.juniorFees)}</p>
         </div>
       </div>
     </div>
