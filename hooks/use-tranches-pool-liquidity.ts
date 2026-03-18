@@ -29,8 +29,11 @@ function computePoolId(key: typeof TRANCHES_POOL_KEY): `0x${string}` {
 
 // Get the storage slot for a pool's state in PoolManager
 function getPoolSlot0Key(poolId: `0x${string}`): `0x${string}` {
-  // pools mapping is at slot 6
-  return keccak256(encodePacked(['bytes32', 'uint256'], [poolId, 6n]))
+  // pools mapping is at slot 6: keccak256(abi.encode(poolId, 6))
+  return keccak256(encodeAbiParameters(
+    parseAbiParameters('bytes32, uint256'),
+    [poolId, 6n]
+  ))
 }
 
 export function useTranchesPoolLiquidity() {
