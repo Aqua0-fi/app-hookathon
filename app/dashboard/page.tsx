@@ -52,7 +52,7 @@ const MOCK_TRANSACTIONS = [
 
 export default function DashboardPage() {
     const { isConnected, address, connect, chainId } = useWallet()
-    const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 84532)
+    const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 1301)
     const { data: pools } = useV4Pools(activeChainId)
     const { data: userPositions, isLoading: isPositionsLoading } = useUserPositions(activeChainId)
 

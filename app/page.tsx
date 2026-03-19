@@ -9,7 +9,7 @@ import { useWallet } from '@/contexts/wallet-context'
 
 export default function PoolsMarketplacePage() {
   const { isConnected, connect, chainId } = useWallet()
-  const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 84532)
+  const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 1301)
   const { data: pools, isLoading } = useV4Pools(activeChainId)
 
   return (

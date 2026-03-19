@@ -35,7 +35,7 @@ export default function PoolDetailPage() {
     const router = useRouter()
     const poolId = params.id as string
     const { chainId } = useWallet()
-    const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 84532)
+    const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 1301)
 
     const { data: pools, isLoading } = useV4Pools(activeChainId)
     const [isProvideModalOpen, setIsProvideModalOpen] = useState(false)
