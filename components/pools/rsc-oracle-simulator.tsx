@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useRef, useEffect } from 'react'
-import { Activity, X, Info, ShieldCheck, Flame, TrendingDown, TrendingUp, Minus } from 'lucide-react'
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { Activity, X, Info, ShieldCheck, Flame, TrendingDown, TrendingUp, Minus, Loader2, CheckCircle2, Radio } from 'lucide-react'
+import { TRANCHES_HOOK, TRANCHES_POOL_KEY } from '@/lib/contracts'
 
 // IL formula matching contract: IL = (a-b)² / (a² + b²) * 10000 (bips)
 function calculateILBips(priceInitial: number, priceCurrent: number): number {
@@ -18,6 +20,7 @@ type Scenario = {
   label: string
   tag: string
   priceChange: number
+  apyBips: bigint
   color: string
   bgColor: string
   borderColor: string
@@ -29,6 +32,7 @@ const SCENARIOS: Scenario[] = [
     label: 'Low Volatility',
     tag: '~2%',
     priceChange: 1.02,
+    apyBips: 300n, // 3%
     color: 'text-emerald-400',
     bgColor: 'bg-emerald-500/5',
     borderColor: 'border-emerald-500/20',
@@ -38,6 +42,7 @@ const SCENARIOS: Scenario[] = [
     label: 'Medium Volatility',
     tag: '~10%',
     priceChange: 1.10,
+    apyBips: 500n, // 5%
     color: 'text-amber-400',
     bgColor: 'bg-amber-500/5',
     borderColor: 'border-amber-500/20',
@@ -47,12 +52,30 @@ const SCENARIOS: Scenario[] = [
     label: 'High Volatility',
     tag: '~25%',
     priceChange: 1.25,
+    apyBips: 1000n, // 10%
     color: 'text-red-400',
     bgColor: 'bg-red-500/5',
     borderColor: 'border-red-500/20',
     icon: TrendingDown,
   },
 ]
+
+const ADJUST_RISK_ABI = [{
+  name: 'adjustRiskParameter',
+  type: 'function',
+  stateMutability: 'nonpayable',
+  inputs: [
+    { name: 'key', type: 'tuple', components: [
+      { name: 'currency0', type: 'address' },
+      { name: 'currency1', type: 'address' },
+      { name: 'fee', type: 'uint24' },
+      { name: 'tickSpacing', type: 'int24' },
+      { name: 'hooks', type: 'address' },
+    ]},
+    { name: 'newSeniorTargetAPY', type: 'uint256' },
+  ],
+  outputs: [],
+}] as const
 
 const SIM = {
   liquidity: 1000,
@@ -109,7 +132,36 @@ function simulateScenario(scenario: Scenario, currentPrice: number) {
 export function RSCOracleSimulator({ currentPrice }: { currentPrice: number }) {
   const [isOpen, setIsOpen] = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
+  const [appliedRegime, setAppliedRegime] = useState<string | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
+
+  const { writeContract, data: txHash, isPending: isSending } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
+
+  const applyRegime = (scenario: Scenario) => {
+    setAppliedRegime(scenario.label)
+    writeContract({
+      address: TRANCHES_HOOK as `0x${string}`,
+      abi: ADJUST_RISK_ABI,
+      functionName: 'adjustRiskParameter',
+      args: [
+        {
+          currency0: TRANCHES_POOL_KEY.currency0,
+          currency1: TRANCHES_POOL_KEY.currency1,
+          fee: TRANCHES_POOL_KEY.fee,
+          tickSpacing: TRANCHES_POOL_KEY.tickSpacing,
+          hooks: TRANCHES_POOL_KEY.hooks,
+        },
+        scenario.apyBips,
+      ],
+    })
+  }
+
+  useEffect(() => {
+    if (isSuccess) {
+      setTimeout(() => setAppliedRegime(null), 3000)
+    }
+  }, [isSuccess])
 
   // Close modal on Escape
   useEffect(() => {
@@ -175,9 +227,9 @@ export function RSCOracleSimulator({ currentPrice }: { currentPrice: number }) {
                   <Activity className="h-4 w-4 text-violet-400" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold">Reactive Oracle Simulator</h2>
+                  <h2 className="text-base font-bold">Reactive Oracle</h2>
                   <p className="text-xs text-muted-foreground">
-                    30-day projection &middot; {SIM.liquidity} units &middot; {SIM.dailyVolume}/day volume &middot; 50/50 Senior/Junior
+                    Cross-chain volatility monitor &middot; Click a scenario to adjust Senior APY on-chain
                   </p>
                 </div>
               </div>
@@ -284,6 +336,30 @@ export function RSCOracleSimulator({ currentPrice }: { currentPrice: number }) {
                         <span className="tabular-nums">{sim.ilReserve}</span>
                       </div>
                     </div>
+
+                    {/* Apply Regime button — calls adjustRiskParameter on-chain */}
+                    <button
+                      onClick={() => applyRegime(scenario)}
+                      disabled={isSending || isConfirming}
+                      className={`w-full flex items-center justify-center gap-2 rounded-lg border ${scenario.borderColor} px-3 py-2 text-xs font-semibold transition-all hover:bg-white/5 disabled:opacity-50 ${scenario.color}`}
+                    >
+                      {appliedRegime === scenario.label && (isSending || isConfirming) ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          {isSending ? 'Signing...' : 'Confirming...'}
+                        </>
+                      ) : appliedRegime === scenario.label && isSuccess ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          APY Updated!
+                        </>
+                      ) : (
+                        <>
+                          <Radio className="h-3.5 w-3.5" />
+                          Apply {(Number(scenario.apyBips) / 100).toFixed(0)}% APY On-Chain
+                        </>
+                      )}
+                    </button>
                   </div>
                 )
               })}
