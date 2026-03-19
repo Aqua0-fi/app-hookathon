@@ -6,7 +6,19 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { TokenPairIcon } from '@/components/token-icon'
 import type { V4Pool } from '@/lib/v4-api'
-import { ArrowUpRight, TrendingUp } from 'lucide-react'
+import { ArrowUpRight, TrendingUp, ExternalLink } from 'lucide-react'
+
+const DYNAMIC_FEE_FLAG = 0x800000
+
+const HOOK_NAMES: Record<string, string> = {
+    '0x0AA6345204931FE6E5748BdB0A17C8DfeD25d5c0': 'LiquidShield',
+}
+
+const EXPLORER_BASE = 'https://unichain-sepolia.blockscout.com'
+
+function truncateAddress(addr: string): string {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+}
 
 interface PoolCardProps {
     pool: V4Pool
@@ -21,11 +33,17 @@ export function PoolCard({ pool }: PoolCardProps) {
         router.push(`/pools/${pool.poolId}`)
     }
 
+    const hookAddress = pool.poolKey.hooks
+    const isNonZeroHook = hookAddress && hookAddress !== '0x0000000000000000000000000000000000000000'
+    const hookName = HOOK_NAMES[hookAddress] || (isNonZeroHook ? 'Custom Hook' : null)
+    const isDynamicFee = (pool.fee & DYNAMIC_FEE_FLAG) !== 0
+
     // TokenPairIcon expects an array of { symbol, logo }
     // We don't have exact logo URLs from the V4 pools registry in MVP, so we fallback to assuming they match `/crypto/SYMBOL.png`
     const getLogo = (symbol: string) => {
         const cleanSymbol = symbol.replace(/^m/, '');
         if (cleanSymbol === 'WBTC') return '/crypto/BTC.png';
+        if (cleanSymbol === 'WETH') return '/crypto/ETH.png';
         return `/crypto/${cleanSymbol}.png`;
     };
 
@@ -51,9 +69,28 @@ export function PoolCard({ pool }: PoolCardProps) {
                             <h3 className="text-base font-semibold">
                                 {pool.token0.symbol}/{pool.token1.symbol}
                             </h3>
-                            <span className="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-violet-500/10 text-violet-400">
-                                Aqua0 Hook
-                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                {hookName && (
+                                    <span className="inline-block px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-amber-500/10 text-amber-400">
+                                        {hookName}
+                                    </span>
+                                )}
+                                <span className="inline-block px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-violet-500/10 text-violet-400">
+                                    Aqua0 Hook
+                                </span>
+                            </div>
+                            {isNonZeroHook && (
+                                <a
+                                    href={`${EXPLORER_BASE}/address/${hookAddress}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="relative z-20 inline-flex items-center gap-1 mt-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors font-mono"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {truncateAddress(hookAddress)}
+                                    <ExternalLink className="h-2.5 w-2.5" />
+                                </a>
+                            )}
                         </div>
                     </div>
                     <div className="flex flex-col items-end">
@@ -67,7 +104,7 @@ export function PoolCard({ pool }: PoolCardProps) {
                 <div className="mt-5 grid grid-cols-2 gap-3">
                     <div className="rounded-lg bg-white/[0.03] p-3">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Swap Fee</p>
-                        <p className="mt-1 text-lg font-bold tabular-nums">{(pool.fee / 10000).toFixed(2)}%</p>
+                        <p className="mt-1 text-lg font-bold tabular-nums">{isDynamicFee ? 'Dynamic' : `${(pool.fee / 10000).toFixed(2)}%`}</p>
                     </div>
                     <div className="rounded-lg bg-white/[0.03] p-3">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Price</p>
