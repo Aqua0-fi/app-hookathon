@@ -18,7 +18,7 @@ const HOOK_NAMES: Record<string, string> = {
     '0x0AA6345204931FE6E5748BdB0A17C8DfeD25d5c0': 'LiquidShield',
 }
 
-const EXPLORER_BASE = 'https://unichain-sepolia.blockscout.com'
+const EXPLORER_BASE = 'https://sepolia.uniscan.xyz'
 
 function truncateAddress(addr: string): string {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
