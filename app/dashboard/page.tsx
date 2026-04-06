@@ -60,14 +60,26 @@ export default function DashboardPage() {
     const tokenAddresses = Array.from(new Set(pools?.flatMap(p => [p.token0.address, p.token1.address]) || []))
     const { data: balances } = useSharedBalances(activeChainId, address || undefined, tokenAddresses)
 
-    // Very naive USD conversion placeholder for fees (treating all tokens as 1:1 USD for MVP demo purposes or just summing them up)
-    // In a real app we would multiply by token price.
+    // Token prices for USD conversion (spot prices from InitializePools.s.sol)
+    // WBTC: 1/0.000015 ≈ 67,848 USDC, WETH: 2000 USDC
+    const TOKEN_PRICES: Record<string, number> = {
+        mWBTC: 67848,
+        mWETH: 2000,
+        mUSDC: 1,
+        mDAI: 1,
+        WBTC: 67848,
+        WETH: 2000,
+        USDC: 1,
+        DAI: 1,
+    }
+
+    // Calculate total earned fees in USD
     const totalEarnedFeesUsd = balances?.reduce((acc, bal) => {
         const token = pools?.flatMap(p => [p.token0, p.token1]).find(t => t.address.toLowerCase() === bal.token.toLowerCase())
         if (!token || !bal.earnedFees) return acc
-        // MVP Placeholder: Assume 1 token = $1 or just sum raw units to show *something* changing
-        // A better approach would be to use currentPrice, but we'll just sum formatted amounts for demo
-        return acc + Number(formatUnits(BigInt(bal.earnedFees), token.decimals))
+        const feeAmount = Number(formatUnits(BigInt(bal.earnedFees), token.decimals))
+        const price = TOKEN_PRICES[token.symbol] || 1
+        return acc + (feeAmount * price)
     }, 0) || 0
 
     const formatCurrency = (value: number) => {
@@ -157,7 +169,7 @@ export default function DashboardPage() {
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-8">
                     {[
                         { label: 'Virtual Positions', value: (userPositions?.length || 0).toString() },
-                        { label: 'Uncollected Fees (Raw Sum MVP)', value: `+${totalEarnedFeesUsd.toFixed(4)}`, color: 'text-emerald-400' }, // Placeholder MVP summation
+                        { label: 'Uncollected Fees ($)', value: `+${totalEarnedFeesUsd.toFixed(4)}`, color: 'text-emerald-400' }, // Placeholder MVP summation
                         { label: 'Active JIT Pools', value: new Set(userPositions?.map(p => p.poolId)).size.toString() },
                         { label: 'Average APY', value: "N/A", color: 'text-emerald-400' }, // Placeholder MVP
                     ].map((stat) => (
