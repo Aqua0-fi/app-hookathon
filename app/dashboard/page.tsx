@@ -14,6 +14,21 @@ import { formatUnits } from 'viem'
 import { useSharedBalances } from '@/hooks/use-shared-balances'
 import { useToast } from '@/hooks/use-toast'
 import { useState } from 'react'
+import Image from 'next/image'
+import { getTokenLogo } from '@/lib/token-logos'
+
+// Chain icons/names mirrored from AlphaNav; kept local to avoid a cross-cutting refactor.
+const CHAIN_ICONS: Record<number, string> = {
+    8453: '/crypto/Base.png',
+    84532: '/crypto/Base.png',
+    1301: '/crypto/Unichain.png',
+}
+const CHAIN_NAMES: Record<number, string> = {
+    8453: 'Base',
+    84532: 'Base Sepolia',
+    1301: 'Unichain Sepolia',
+}
+const truncate = (a: string) => `${a.slice(0, 6)}\u2026${a.slice(-4)}`
 
 export default function DashboardPage() {
     const { isConnected, address, connect, chainId } = useWallet()
@@ -23,7 +38,8 @@ export default function DashboardPage() {
     const { toast } = useToast()
     
     const [isFauceting, setIsFauceting] = useState(false)
-    const [isSimulating, setIsSimulating] = useState(false)
+    const [faucetOpen, setFaucetOpen] = useState(false)
+    const [faucetClaimed, setFaucetClaimed] = useState(false)
 
     const runFaucet = async () => {
         if (!address) return
@@ -37,6 +53,7 @@ export default function DashboardPage() {
             const data = await res.json()
             if (data.success) {
                 toast({ title: "Faucet Success", description: "Testnet tokens have been sent to your wallet." })
+                setFaucetClaimed(true)
             } else {
                 toast({ title: "Faucet Failed", description: data.message || "Unknown error", variant: "destructive" })
             }
@@ -44,54 +61,6 @@ export default function DashboardPage() {
             toast({ title: "Faucet Error", description: e.message, variant: "destructive" })
         } finally {
             setIsFauceting(false)
-        }
-    }
-
-    const runSimulate = async () => {
-        setIsSimulating(true)
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/demo/simulate?chain=${activeChainId}`, {
-                method: "POST",
-                 headers: { "Content-Type": "application/json", "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "Aqua0-gigachads" },
-            })
-            const data = await res.json()
-            if (data.success) {
-                toast({ title: "Simulation Started", description: "Swap volume is being generated in the background!" })
-                
-                // Simulate frontend toasts to show progress over next 12.5 seconds
-                if (pools && pools.length > 0) {
-                    let totalToasts = 0;
-                    const interval = setInterval(() => {
-                        const randomPool = pools[Math.floor(Math.random() * pools.length)];
-                        const isZeroForOne = Math.random() > 0.5;
-                        const tokenIn = isZeroForOne ? randomPool.token0 : randomPool.token1;
-                        const tokenOut = isZeroForOne ? randomPool.token1 : randomPool.token0;
-                        
-                        // Fake amounts based on token
-                        let amount = 0;
-                        if (tokenIn.symbol.includes("BTC")) amount = +(Math.random() * 0.5 + 0.01).toFixed(4);
-                        else if (tokenIn.symbol.includes("ETH")) amount = +(Math.random() * 5 + 0.1).toFixed(3);
-                        else amount = Math.floor(Math.random() * 4000) + 100; // Stables
-                        
-                        toast({
-                            title: `Swap Executed`,
-                            description: `Swapped ${amount} ${tokenIn.symbol} for ${tokenOut.symbol} in ${randomPool.token0.symbol}/${randomPool.token1.symbol}`,
-                        })
-                        
-                        totalToasts++;
-                        if (totalToasts >= 5) {
-                            clearInterval(interval);
-                            toast({ title: "Simulation Complete", description: "Backend swap generation has finished." });
-                        }
-                    }, 2500);
-                }
-            } else {
-                toast({ title: "Simulation Failed", description: data.message || "Unknown error", variant: "destructive" })
-            }
-        } catch (e: any) {
-            toast({ title: "Simulation Error", description: e.message, variant: "destructive" })
-        } finally {
-            setIsSimulating(false)
         }
     }
 
@@ -121,6 +90,20 @@ export default function DashboardPage() {
         return acc + (feeAmount * price)
     }, 0) || 0
 
+    // Per-token fee breakdown for FeesSummary chips (only tokens with > 0 fees, sorted by USD value desc)
+    const feeChips = (balances ?? [])
+        .map((bal) => {
+            const token = pools?.flatMap(p => [p.token0, p.token1]).find(t => t.address.toLowerCase() === bal.token.toLowerCase())
+            if (!token || !bal.earnedFees) return null
+            const amount = Number(formatUnits(BigInt(bal.earnedFees), token.decimals))
+            if (amount <= 0) return null
+            const usd = amount * (TOKEN_PRICES[token.symbol] || 1)
+            return { symbol: token.symbol, amount, usd }
+        })
+        .filter((x): x is { symbol: string; amount: number; usd: number } => x !== null)
+        .sort((a, b) => b.usd - a.usd)
+        .slice(0, 4)
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -147,47 +130,84 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen">
-            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mb-8 flex justify-between items-end">
+                <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold">Liquidity Dashboard</h1>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                            <div className="flex items-center gap-2">
-                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                <span className="text-sm text-muted-foreground">
-                                    {address ? `${address.slice(0, 6)}\u2026${address.slice(-4)}` : 'Connected'}
+                        <div className="mb-3 inline-flex items-center gap-2.5 text-[11px] uppercase tracking-[0.3em] text-white/60">
+                            <DotMarkMini />
+                            Your dashboard
+                        </div>
+                        <h1 className="text-[clamp(32px,4.5vw,52px)] font-bold leading-none tracking-[-0.025em] text-white">
+                            Liquidity dashboard
+                        </h1>
+                        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-white/60">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1">
+                                {chainId && CHAIN_ICONS[chainId] && (
+                                    <Image
+                                        src={CHAIN_ICONS[chainId]}
+                                        alt={CHAIN_NAMES[chainId] ?? 'Chain'}
+                                        width={14}
+                                        height={14}
+                                        className="h-3.5 w-3.5 rounded-full"
+                                        unoptimized
+                                    />
+                                )}
+                                <span className="text-[12px] text-white/80">
+                                    {CHAIN_NAMES[chainId ?? 0] ?? `Chain ${activeChainId}`}
                                 </span>
-                            </div>
-                            <span className="text-sm text-muted-foreground">Chain ID: {activeChainId}</span>
+                            </span>
+                            <span className="text-white/20">·</span>
+                            <span className="font-mono text-[12px] text-white/70">
+                                {address ? truncate(address) : 'Connected'}
+                            </span>
+                            <span className="text-white/20">·</span>
+                            <span className="font-mono text-[12px] text-white/40">
+                                Chain ID {activeChainId}
+                            </span>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={runFaucet} disabled={isFauceting || !address}>
-                            {isFauceting ? "Requesting..." : "Get Test Tokens"}
-                        </Button>
-                        <Button variant="secondary" onClick={runSimulate} disabled={isSimulating}>
-                            {isSimulating ? "Simulating..." : "Simulate Swap Volume"}
-                        </Button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => { setFaucetClaimed(false); setFaucetOpen(true) }}
+                            disabled={!address}
+                            className="rounded-full border border-white/20 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:border-white hover:bg-white/5 disabled:pointer-events-none disabled:opacity-50"
+                        >
+                            Get test tokens
+                        </button>
                     </div>
                 </div>
 
-                {/* Stats Cards */}
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-                    {[
-                        { label: 'Virtual Positions', value: (userPositions?.length || 0).toString() },
-                        { label: 'Uncollected Fees ($)', value: `+${totalEarnedFeesUsd.toFixed(4)}`, color: 'text-emerald-400' }, // Placeholder MVP summation
-                        { label: 'Active JIT Pools', value: new Set(userPositions?.map(p => p.poolId)).size.toString() },
-                        { label: 'Average APY', value: "N/A", color: 'text-emerald-400' }, // Placeholder MVP
-                    ].map((stat) => (
-                        <div
-                            key={stat.label}
-                            className="rounded-xl border border-border/50 bg-secondary/20 p-5"
-                        >
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{stat.label}</p>
-                            <p className={`mt-2 text-2xl font-bold tabular-nums ${stat.color || ''}`}>{stat.value}</p>
-                        </div>
-                    ))}
+                {/* Fees Summary */}
+                <FeesSummary
+                    totalUsd={totalEarnedFeesUsd}
+                    chips={feeChips}
+                />
+
+                {/* KPIs */}
+                <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Kpi
+                        label="Virtual positions"
+                        value={(userPositions?.length || 0).toString()}
+                        sub="pools backed"
+                    />
+                    <Kpi
+                        label="Uncollected fees ($)"
+                        value={`+${totalEarnedFeesUsd.toFixed(4)}`}
+                        sub="claimable anytime"
+                        accent
+                    />
+                    <Kpi
+                        label="Active JIT pools"
+                        value={new Set(userPositions?.map(p => p.poolId)).size.toString()}
+                        sub="live"
+                    />
+                    <Kpi
+                        label="Average APY"
+                        value="N/A"
+                        sub="trailing 7d"
+                        accent
+                    />
                 </div>
 
                 {/* Real Liquidity Manager */}
@@ -283,6 +303,16 @@ export default function DashboardPage() {
                 </Card>
 
             </div>
+
+            {faucetOpen && (
+                <FaucetModal
+                    chainId={activeChainId}
+                    isLoading={isFauceting}
+                    claimed={faucetClaimed}
+                    onClaim={runFaucet}
+                    onClose={() => setFaucetOpen(false)}
+                />
+            )}
         </div>
     )
 }
@@ -553,5 +583,322 @@ function DotMarkMini() {
                 ))
             )}
         </svg>
+    )
+}
+
+/* ---------- Fees Summary card ----------
+   Top-of-dashboard summary of uncollected fees with per-token breakdown chips.
+   Claim/Compound buttons are visual-only in this phase — wiring them requires
+   exposing the claim flow from RealLiquidityManager (deferred to a later phase).
+*/
+
+function FeesSummary({
+    totalUsd,
+    chips,
+}: {
+    totalUsd: number
+    chips: Array<{ symbol: string; amount: number; usd: number }>
+}) {
+    const formatUsd = (v: number) =>
+        v >= 1000 ? `$${(v / 1000).toFixed(2)}K` : `$${v.toFixed(2)}`
+
+    return (
+        <div
+            className="mb-6 flex flex-col gap-5 rounded-xl border p-6 sm:flex-row sm:items-center sm:justify-between"
+            style={{
+                background:
+                    "linear-gradient(100deg, rgba(127,229,229,0.06), transparent 60%), #0d0d0d",
+                borderColor: "rgba(127,229,229,0.2)",
+            }}
+        >
+            <div className="flex-1">
+                <div className="mb-2.5 inline-flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-white/60">
+                    <span
+                        className="inline-block h-1.5 w-1.5 rounded-full bg-[#7FE5E5]"
+                        style={{
+                            boxShadow: "0 0 6px #7FE5E5",
+                            animation: "a0-pulse-fees 2s infinite ease-out",
+                        }}
+                    />
+                    Fees earned · uncollected
+                </div>
+                <div className="mb-3 flex items-baseline gap-3">
+                    <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-[#7FE5E5] tabular-nums">
+                        +{totalUsd.toFixed(4)}
+                    </span>
+                    <span className="text-[13px] text-white/60">
+                        ≈ {formatUsd(totalUsd)}
+                    </span>
+                </div>
+                {chips.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                        {chips.map((c) => (
+                            <span
+                                key={c.symbol}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[11px] text-white/80"
+                            >
+                                <Image
+                                    src={getTokenLogo(c.symbol)}
+                                    alt={c.symbol}
+                                    width={14}
+                                    height={14}
+                                    className="h-3.5 w-3.5 rounded-full"
+                                    unoptimized
+                                />
+                                +{c.amount.toFixed(4)} {c.symbol}
+                            </span>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-[12px] text-white/40">
+                        No fees accrued yet — deposit to start earning.
+                    </div>
+                )}
+            </div>
+
+            <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-end">
+                <button
+                    type="button"
+                    disabled
+                    title="Coming soon — wiring claim flow"
+                    className="cursor-not-allowed rounded border border-white/10 bg-white/5 px-5 py-2.5 text-[13px] font-semibold text-white/80 opacity-60"
+                >
+                    Claim fees
+                </button>
+                <button
+                    type="button"
+                    disabled
+                    title="Coming soon"
+                    className="cursor-not-allowed rounded border border-transparent px-5 py-2.5 text-[13px] font-semibold text-white/60 opacity-60 hover:text-white"
+                >
+                    Compound
+                </button>
+            </div>
+
+            <style jsx>{`
+                @keyframes a0-pulse-fees {
+                    0% {
+                        box-shadow: 0 0 6px #7fe5e5;
+                    }
+                    50% {
+                        box-shadow: 0 0 14px #7fe5e5, 0 0 4px #7fe5e5;
+                    }
+                    100% {
+                        box-shadow: 0 0 6px #7fe5e5;
+                    }
+                }
+            `}</style>
+        </div>
+    )
+}
+
+/* ---------- Faucet modal ----------
+   Shown when user clicks "Get test tokens" in the connected dashboard header.
+   Wraps the existing /api/v1/demo/faucet endpoint (single POST mints all 4
+   testnet tokens for the connected wallet on the active chain).
+
+   The chain pills are visual indicators of where the faucet is targeting —
+   they reflect the wallet's current chain rather than switching it.
+*/
+
+const FAUCET_TOKENS = [
+    { sym: 'mUSDC', amount: '1,000', name: 'Mock USDC' },
+    { sym: 'mDAI', amount: '1,000', name: 'Mock DAI' },
+    { sym: 'mWETH', amount: '0.5', name: 'Mock WETH' },
+    { sym: 'mWBTC', amount: '0.02', name: 'Mock WBTC' },
+]
+
+function FaucetModal({
+    chainId,
+    isLoading,
+    claimed,
+    onClaim,
+    onClose,
+}: {
+    chainId: number
+    isLoading: boolean
+    claimed: boolean
+    onClaim: () => void
+    onClose: () => void
+}) {
+    // Alpha is Unichain-only for now; Base shown but locked.
+    const chainLabel = 'Unichain Sepolia'
+
+    return (
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+            onClick={onClose}
+        >
+            <div
+                className="w-full max-w-[560px] rounded-2xl border border-white/10 bg-[#0d0d0d] p-7 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                        <div className="mb-2 inline-flex items-center gap-2.5 text-[10px] font-medium uppercase tracking-[0.18em] text-white/60">
+                            <DotMarkMini />
+                            Aqua0 faucet
+                        </div>
+                        <h3 className="text-[24px] font-bold tracking-[-0.02em] text-white">
+                            Get test tokens
+                        </h3>
+                        <p className="mt-1.5 text-[13px] text-white/60">
+                            Alpha runs on Unichain Sepolia. Base support coming soon.
+                            Claim once every 24h.
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="text-[18px] text-white/40 transition-colors hover:text-white"
+                        aria-label="Close"
+                    >
+                        ✕
+                    </button>
+                </div>
+
+                {/* Chain row — Unichain active, Base locked */}
+                <div className="mb-5 grid grid-cols-2 gap-2">
+                    <div className="flex items-center justify-center gap-2 rounded-lg border border-[#7FE5E5]/50 bg-[#7FE5E5]/5 px-3 py-2.5 text-[13px] text-white">
+                        <Image
+                            src="/crypto/Unichain.png"
+                            alt="Unichain"
+                            width={14}
+                            height={14}
+                            className="h-3.5 w-3.5 rounded-full"
+                            unoptimized
+                        />
+                        Unichain Sepolia
+                        <span className="ml-1 text-[10px] uppercase tracking-[0.15em] text-[#7FE5E5]">
+                            active
+                        </span>
+                    </div>
+                    <div
+                        className="flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2.5 text-[13px] text-white/30"
+                        title="Base support coming soon"
+                    >
+                        <Image
+                            src="/crypto/Base.png"
+                            alt="Base"
+                            width={14}
+                            height={14}
+                            className="h-3.5 w-3.5 rounded-full opacity-50"
+                            unoptimized
+                        />
+                        Base Sepolia
+                        <span className="ml-1 inline-flex items-center gap-1 rounded border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.15em] text-white/40">
+                            🔒 Soon
+                        </span>
+                    </div>
+                </div>
+
+                {/* Token list */}
+                <div className="mb-5 divide-y divide-white/5 rounded-xl border border-white/10 bg-black/30">
+                    {FAUCET_TOKENS.map((t) => (
+                        <div
+                            key={t.sym}
+                            className="flex items-center justify-between gap-4 p-3.5"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Image
+                                    src={getTokenLogo(t.sym)}
+                                    alt={t.sym}
+                                    width={32}
+                                    height={32}
+                                    className="h-8 w-8 rounded-full"
+                                    unoptimized
+                                />
+                                <div>
+                                    <div className="text-[14px] font-semibold text-white">
+                                        {t.sym}
+                                    </div>
+                                    <div className="text-[11px] text-white/50">
+                                        {t.name}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="font-mono text-[14px] text-white tabular-nums">
+                                    {t.amount}
+                                </div>
+                                <div className="text-[10px] uppercase tracking-[0.1em] text-white/40">
+                                    per claim
+                                </div>
+                            </div>
+                            <div className="w-[80px] text-right">
+                                {claimed ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7FE5E5]/30 bg-[#7FE5E5]/10 px-2.5 py-1 text-[11px] font-semibold text-[#7FE5E5]">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-[#7FE5E5] shadow-[0_0_6px_#7FE5E5]" />
+                                        Sent
+                                    </span>
+                                ) : (
+                                    <span className="text-[11px] text-white/30">—</span>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Claim CTA — backend mints all 4 in one call */}
+                <button
+                    onClick={onClaim}
+                    disabled={isLoading || claimed}
+                    className="w-full rounded-lg bg-[#7FE5E5] px-5 py-3 text-[14px] font-semibold text-black transition-colors hover:bg-[#5dd4d4] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    {isLoading
+                        ? 'Sending tokens…'
+                        : claimed
+                          ? 'Tokens sent ✓'
+                          : `Claim all on ${chainLabel}`}
+                </button>
+
+                <div className="mt-4 flex items-start gap-2 text-[12px] text-white/40">
+                    <span className="mt-px">⚡</span>
+                    <span>
+                        Need ETH for gas?{' '}
+                        <a
+                            href="https://www.alchemy.com/faucets/base-sepolia"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="border-b border-dotted border-white/40 text-white/70 hover:border-[#7FE5E5] hover:text-[#7FE5E5]"
+                        >
+                            Open the public Sepolia faucet ↗
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+/* ---------- KPI card ---------- */
+
+function Kpi({
+    label,
+    value,
+    sub,
+    accent,
+}: {
+    label: string
+    value: string
+    sub?: string
+    accent?: boolean
+}) {
+    return (
+        <div className="rounded-xl border border-white/10 bg-[#0d0d0d] p-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-white/60">
+                {label}
+            </p>
+            <p
+                className={`mt-2 text-[28px] font-bold leading-none tracking-[-0.02em] tabular-nums ${
+                    accent ? 'text-[#7FE5E5]' : 'text-white'
+                }`}
+            >
+                {value}
+            </p>
+            {sub && (
+                <p className="mt-1.5 text-[12px] text-white/40">{sub}</p>
+            )}
+        </div>
     )
 }
