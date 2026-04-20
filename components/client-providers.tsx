@@ -2,8 +2,10 @@
 
 import dynamic from 'next/dynamic'
 import type { ReactNode } from 'react'
-import { Navbar } from '@/components/navbar'
-import { Footer } from '@/components/footer'
+import { AlphaBar } from '@/components/alpha/alpha-bar'
+import { AlphaNav } from '@/components/alpha/alpha-nav'
+import { AlphaFooter } from '@/components/alpha/alpha-footer'
+import { AlphaBackground } from '@/components/alpha/alpha-background'
 
 /**
  * Dynamically import WalletProvider with SSR disabled.
@@ -24,9 +26,13 @@ const WalletProvider = dynamic(
 export function ClientProviders({ children }: { children: ReactNode }) {
   return (
     <WalletProvider>
-      <Navbar />
-      {children}
-      <Footer />
+      <AlphaBackground />
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <AlphaBar />
+        <AlphaNav />
+        <main className="flex-1">{children}</main>
+        <AlphaFooter />
+      </div>
     </WalletProvider>
   )
 }
