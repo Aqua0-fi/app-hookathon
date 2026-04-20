@@ -81,54 +81,19 @@ export function Navbar() {
             </Button>
           ) : (
             <div className="flex items-center gap-2">
-              {/* Chain selector */}
-              <div className="relative">
-                <button
-                  onClick={() => setChainDropdownOpen(!chainDropdownOpen)}
-                  className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-sm font-medium transition-colors hover:bg-secondary"
-                >
-                  {chainId && chainIcons[chainId] ? (
-                    <Image
-                      src={chainIcons[chainId]}
-                      alt={chainNames[chainId] ?? 'Chain'}
-                      width={18}
-                      height={18}
-                      className="rounded-full"
-                      unoptimized
-                    />
-                  ) : null}
-                  <span className="hidden sm:inline">{chainId ? chainNames[chainId] ?? `Chain ${chainId}` : 'Unknown'}</span>
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                </button>
-
-                {/* Chain dropdown */}
-                {chainDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-background p-1 shadow-lg">
-                    {chains.map((chain) => (
-                      <button
-                        key={chain.id}
-                        onClick={() => {
-                          switchChain({ chainId: chain.id })
-                          setChainDropdownOpen(false)
-                        }}
-                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-secondary ${chainId === chain.id ? 'bg-secondary/50 font-medium' : 'text-muted-foreground'
-                          }`}
-                      >
-                        {chainIcons[chain.id] && (
-                          <Image
-                            src={chainIcons[chain.id]}
-                            alt={chain.name}
-                            width={16}
-                            height={16}
-                            className="rounded-full"
-                            unoptimized
-                          />
-                        )}
-                        {chain.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+              {/* Chain indicator (fixed) */}
+              <div className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-sm font-medium">
+                {chainId && chainIcons[chainId] ? (
+                  <Image
+                    src={chainIcons[chainId]}
+                    alt={chainNames[chainId] ?? 'Chain'}
+                    width={18}
+                    height={18}
+                    className="rounded-full"
+                    unoptimized
+                  />
+                ) : null}
+                <span className="hidden sm:inline">{chainId ? chainNames[chainId] ?? `Chain ${chainId}` : 'Unknown'}</span>
               </div>
 
               {/* Account */}

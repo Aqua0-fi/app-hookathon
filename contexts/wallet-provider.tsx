@@ -7,9 +7,7 @@ import { WagmiProvider } from '@privy-io/wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAccount } from 'wagmi'
 import { config } from '@/lib/wagmi'
-import { base, baseSepolia } from 'wagmi/chains'
 import { unichainSepolia } from 'viem/chains'
-import { localAqua0Chain } from '@/lib/wagmi'
 import { WalletContext } from './wallet-context'
 import type { WalletContextType } from './wallet-context'
 
@@ -62,8 +60,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           accentColor: '#dc2626',
           walletChainType: 'ethereum-only',
         },
-        supportedChains: [base, baseSepolia, unichainSepolia, localAqua0Chain],
-        defaultChain: baseSepolia,
+        supportedChains: [unichainSepolia],
+        defaultChain: unichainSepolia,
       }}
     >
       <QueryClientProvider client={queryClient}>

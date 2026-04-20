@@ -3,23 +3,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table'
 import { TokenPairIcon } from '@/components/token-icon'
 import { useWallet } from '@/contexts/wallet-context'
-import {
-    Wallet,
-    Plus,
-    Minus,
-    ExternalLink,
-    TrendingUp,
-} from 'lucide-react'
+import { Wallet, Plus, Minus, TrendingUp } from 'lucide-react'
 import Image from 'next/image'
 import { RealLiquidityManager } from '@/components/dashboard/real-liquidity-manager'
 import { useV4Pools } from '@/hooks/use-v4-pools'
@@ -27,34 +13,88 @@ import { useUserPositions } from '@/hooks/use-user-positions'
 import { VisualLiquidityChart } from '@/components/pools/visual-liquidity-chart'
 import { formatUnits } from 'viem'
 import { useSharedBalances } from '@/hooks/use-shared-balances'
-
-// Mock Transactions
-const MOCK_TRANSACTIONS = [
-    {
-        id: "tx-1",
-        type: "deposit",
-        amount: "1.5 WETH, 3500 USDC",
-        pool: "WETH/USDC",
-        status: "completed",
-        timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
-        hash: "0x123abc...",
-    },
-    {
-        id: "tx-2",
-        type: "withdraw fees",
-        amount: "45.50 USDC",
-        pool: "WETH/USDC",
-        status: "completed",
-        timestamp: new Date(Date.now() - 3600000 * 48).toISOString(),
-        hash: "0x456def...",
-    }
-]
+import { useToast } from '@/hooks/use-toast'
+import { useState } from 'react'
 
 export default function DashboardPage() {
     const { isConnected, address, connect, chainId } = useWallet()
     const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 84532)
     const { data: pools } = useV4Pools(activeChainId)
-    const { data: userPositions, isLoading: isPositionsLoading } = useUserPositions(activeChainId)
+    const { data: userPositions, isLoading: isPositionsLoading, refetch: refetchPositions } = useUserPositions(activeChainId)
+    const { toast } = useToast()
+    
+    const [isFauceting, setIsFauceting] = useState(false)
+    const [isSimulating, setIsSimulating] = useState(false)
+
+    const runFaucet = async () => {
+        if (!address) return
+        setIsFauceting(true)
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/demo/faucet?chain=${activeChainId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "Aqua0-gigachads" },
+                body: JSON.stringify({ address })
+            })
+            const data = await res.json()
+            if (data.success) {
+                toast({ title: "Faucet Success", description: "Testnet tokens have been sent to your wallet." })
+            } else {
+                toast({ title: "Faucet Failed", description: data.message || "Unknown error", variant: "destructive" })
+            }
+        } catch (e: any) {
+            toast({ title: "Faucet Error", description: e.message, variant: "destructive" })
+        } finally {
+            setIsFauceting(false)
+        }
+    }
+
+    const runSimulate = async () => {
+        setIsSimulating(true)
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/demo/simulate?chain=${activeChainId}`, {
+                method: "POST",
+                 headers: { "Content-Type": "application/json", "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "Aqua0-gigachads" },
+            })
+            const data = await res.json()
+            if (data.success) {
+                toast({ title: "Simulation Started", description: "Swap volume is being generated in the background!" })
+                
+                // Simulate frontend toasts to show progress over next 12.5 seconds
+                if (pools && pools.length > 0) {
+                    let totalToasts = 0;
+                    const interval = setInterval(() => {
+                        const randomPool = pools[Math.floor(Math.random() * pools.length)];
+                        const isZeroForOne = Math.random() > 0.5;
+                        const tokenIn = isZeroForOne ? randomPool.token0 : randomPool.token1;
+                        const tokenOut = isZeroForOne ? randomPool.token1 : randomPool.token0;
+                        
+                        // Fake amounts based on token
+                        let amount = 0;
+                        if (tokenIn.symbol.includes("BTC")) amount = +(Math.random() * 0.5 + 0.01).toFixed(4);
+                        else if (tokenIn.symbol.includes("ETH")) amount = +(Math.random() * 5 + 0.1).toFixed(3);
+                        else amount = Math.floor(Math.random() * 4000) + 100; // Stables
+                        
+                        toast({
+                            title: `Swap Executed`,
+                            description: `Swapped ${amount} ${tokenIn.symbol} for ${tokenOut.symbol} in ${randomPool.token0.symbol}/${randomPool.token1.symbol}`,
+                        })
+                        
+                        totalToasts++;
+                        if (totalToasts >= 5) {
+                            clearInterval(interval);
+                            toast({ title: "Simulation Complete", description: "Backend swap generation has finished." });
+                        }
+                    }, 2500);
+                }
+            } else {
+                toast({ title: "Simulation Failed", description: data.message || "Unknown error", variant: "destructive" })
+            }
+        } catch (e: any) {
+            toast({ title: "Simulation Error", description: e.message, variant: "destructive" })
+        } finally {
+            setIsSimulating(false)
+        }
+    }
 
     // Extract all unique tokens from all pools to check fees
     const tokenAddresses = Array.from(new Set(pools?.flatMap(p => [p.token0.address, p.token1.address]) || []))
@@ -91,32 +131,6 @@ export default function DashboardPage() {
         }).format(value)
     }
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        })
-    }
-
-    const getTransactionIcon = (type: string) => {
-        const iconMap: Record<string, string> = {
-            deposit: '/icons/Deposit.png',
-            withdraw: '/icons/Withdraw.png',
-            'withdraw fees': '/icons/Gift.png',
-        }
-        return (
-            <Image
-                src={iconMap[type] || '/icons/Swap.png'}
-                alt={type}
-                width={20}
-                height={20}
-                className="h-5 w-5"
-                unoptimized
-            />
-        )
-    }
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -152,16 +166,26 @@ export default function DashboardPage() {
         <div className="min-h-screen">
             <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold">Liquidity Dashboard</h1>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                        <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                            <span className="text-sm text-muted-foreground">
-                                {address ? `${address.slice(0, 6)}\u2026${address.slice(-4)}` : 'Connected'}
-                            </span>
+                <div className="mb-8 flex justify-between items-end">
+                    <div>
+                        <h1 className="text-2xl font-bold">Liquidity Dashboard</h1>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                            <div className="flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                <span className="text-sm text-muted-foreground">
+                                    {address ? `${address.slice(0, 6)}\u2026${address.slice(-4)}` : 'Connected'}
+                                </span>
+                            </div>
+                            <span className="text-sm text-muted-foreground">Chain ID: {activeChainId}</span>
                         </div>
-                        <span className="text-sm text-muted-foreground">Chain ID: {activeChainId}</span>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={runFaucet} disabled={isFauceting || !address}>
+                            {isFauceting ? "Requesting..." : "Get Test Tokens"}
+                        </Button>
+                        <Button variant="secondary" onClick={runSimulate} disabled={isSimulating}>
+                            {isSimulating ? "Simulating..." : "Simulate Swap Volume"}
+                        </Button>
                     </div>
                 </div>
 
@@ -184,7 +208,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Real Liquidity Manager */}
-                {pools && <RealLiquidityManager pools={pools} />}
+                {pools && <RealLiquidityManager pools={pools} onDepositSuccess={refetchPositions} />}
 
                 {/* Active Positions */}
                 <Card className="mb-8">
@@ -275,50 +299,6 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
 
-                {/* Transaction History */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Pool</TableHead>
-                                    <TableHead>Amount</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead className="text-right">Hash</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {MOCK_TRANSACTIONS.map((tx) => (
-                                    <TableRow key={tx.id}>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                {getTransactionIcon(tx.type)}
-                                                <span className="capitalize">{tx.type}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-medium">{tx.pool}</TableCell>
-                                        <TableCell>
-                                            {tx.amount}
-                                        </TableCell>
-                                        <TableCell>{getStatusBadge(tx.status)}</TableCell>
-                                        <TableCell className="text-muted-foreground">{formatDate(tx.timestamp)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" className="h-8 gap-1 px-2">
-                                                <span className="font-mono text-xs text-muted-foreground hover:text-foreground">{tx.hash.slice(0, 10)}...</span>
-                                                <ExternalLink className="h-3 w-3" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
             </div>
         </div>
     )

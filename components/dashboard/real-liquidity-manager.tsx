@@ -19,9 +19,10 @@ import { ArrowDownToLine, ArrowUpFromLine, RefreshCw } from 'lucide-react'
 
 interface RealLiquidityManagerProps {
     pools: V4Pool[]
+    onDepositSuccess?: () => void
 }
 
-export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
+export function RealLiquidityManager({ pools, onDepositSuccess }: RealLiquidityManagerProps) {
     const { isConnected, address, chainId } = useWallet()
     const { toast } = useToast()
     const { sendTransactionAsync } = useSendTransaction()
@@ -88,6 +89,7 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
                 const { calldata: depCall } = await api.post<{ calldata: any }>('v4/lp/prepare-deposit', { token: activeToken.address, amount: amountRaw, to: address }, { chainId: String(backendChainId) })
                 await sendAndWait(depCall, `Deposit ${activeToken.symbol}`)
                 toast({ title: "✅ Deposit Successful!" })
+                onDepositSuccess?.()
             } else {
                 const { calldata: withCall } = await api.post<{ calldata: any }>('v4/lp/prepare-withdraw', { token: activeToken.address, amount: amountRaw, from: address, to: address }, { chainId: String(backendChainId) })
                 await sendAndWait(withCall, `Withdraw ${activeToken.symbol}`)

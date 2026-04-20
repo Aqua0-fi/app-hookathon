@@ -328,25 +328,7 @@ export default function SwapPage() {
           </Dialog>
         </div>
 
-        {/* Chain Toggle */}
-        {chains.length > 0 && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg bg-secondary/50 p-1">
-            {chains.map((chain) => (
-              <button
-                key={chain.id}
-                type="button"
-                onClick={() => setSelectedChain(chain)}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${selectedChain?.id === chain.id
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-                  }`}
-              >
-                <ChainIcon chain={chain} size="sm" />
-                {chain.name}
-              </button>
-            ))}
-          </div>
-        )}
+
 
         {/* Swap Card */}
         <Card className="overflow-hidden">

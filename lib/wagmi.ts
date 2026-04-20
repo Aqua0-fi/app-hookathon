@@ -13,11 +13,8 @@ export const localAqua0Chain: Chain = {
 }
 
 export const config = createConfig({
-  chains: [base, baseSepolia, unichainSepolia, localAqua0Chain],
+  chains: [unichainSepolia],
   transports: {
-    [base.id]: http(),
-    [baseSepolia.id]: http(),
     [unichainSepolia.id]: http(),
-    [localAqua0Chain.id]: http('http://localhost:8545'),
   },
 })
