@@ -392,7 +392,7 @@ export default function SwapPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <p className="flex-1 text-[28px] font-medium text-white tabular-nums">
+              <p className="flex-1 text-[28px] font-medium text-[#7FE5E5] tabular-nums">
                 {quoteData ? Number(quoteData.amountOut).toFixed(4) : '0.00'}
               </p>
               {/* JIT Breakdown popover */}
