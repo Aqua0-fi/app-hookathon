@@ -269,8 +269,27 @@ export default function SwapPage() {
           </Dialog>
         </div>
 
-        {/* Swap Card */}
-        <div className="rounded-2xl border border-white/10 bg-[#0d0d0d] p-5">
+        {/* Swap Card with Unichain pink aura behind */}
+        <div className="relative">
+          {/* Pink aura — uses Unichain brand color #FF007A */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10"
+          >
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{
+                width: '130%',
+                height: '120%',
+                background:
+                  'radial-gradient(ellipse at center, rgba(255,0,122,0.45) 0%, rgba(255,0,122,0.18) 35%, transparent 70%)',
+                filter: 'blur(72px)',
+              }}
+            />
+          </div>
+
+          {/* Inner card */}
+          <div className="relative rounded-2xl border border-white/10 bg-[#0d0d0d] p-5">
           {/* Chain row — Unichain active, Base locked */}
           <div className="mb-4 grid grid-cols-2 gap-2">
             <div
@@ -561,6 +580,7 @@ export default function SwapPage() {
                 Swap
               </button>
             )}
+          </div>
           </div>
         </div>
       </div>
