@@ -223,11 +223,12 @@ function StrategyCardAlpha({
   ]
   const chain = CHAIN_PILLS[chainId] ?? CHAIN_PILLS[1301]
 
-  // Type label
+  // Type label — all strategy types share the same "type" tone so the
+  // badge group is visually consistent across CP / SS / concentrated.
   const typeMeta = {
-    'constant-product': { label: 'Constant Product', tone: 'violet' as const },
-    'stable-swap': { label: 'Stable Swap', tone: 'sky' as const },
-  }[strategy.type] ?? { label: 'Custom', tone: 'neutral' as const }
+    'constant-product': { label: 'Constant Product' },
+    'stable-swap': { label: 'Stable Swap' },
+  }[strategy.type] ?? { label: 'Custom' }
 
   return (
     <Link
@@ -249,9 +250,9 @@ function StrategyCardAlpha({
         </div>
       </div>
 
-      {/* Type + Tech badges */}
+      {/* Badges: strategy type (violet) + venue (aqua, pulse) */}
       <div className="mt-4 flex flex-wrap gap-1.5">
-        <BadgeInline label={typeMeta.label} tone={typeMeta.tone} />
+        <BadgeInline label={typeMeta.label} tone="violet" />
         <BadgeInline label="SwapVM · Aqua0" tone="aqua" pulse />
       </div>
 

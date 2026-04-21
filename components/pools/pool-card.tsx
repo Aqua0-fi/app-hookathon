@@ -52,15 +52,15 @@ export function PoolCard({ pool, chainId = 1301 }: PoolCardProps) {
         </div>
       </div>
 
-      {/* Type + Tech badges */}
+      {/* Badges: strategy type (violet) + venue (aqua, pulse) */}
       <div className="mt-4 flex flex-wrap gap-1.5">
-        {/* Type — V4 is always concentrated liquidity */}
-        <Badge label="Concentrated" tone="neutral" />
-        {/* Tech */}
+        {/* Strategy type — V4 is always concentrated liquidity */}
+        <Badge label="Concentrated" tone="violet" />
+        {/* Venue */}
         {pool.isAqua0Enabled ? (
           <Badge label="Hook · Aqua0" tone="aqua" pulse />
         ) : (
-          <Badge label="Hook · Classic" tone="dim" />
+          <Badge label="Hook · Classic" tone="aqua" />
         )}
       </div>
 
