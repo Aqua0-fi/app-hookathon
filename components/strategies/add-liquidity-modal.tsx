@@ -26,24 +26,24 @@ interface AddLiquidityModalProps {
   maxPrice?: number
 }
 
-// Mock token prices in USD
+// Mock token prices in USD — includes mocked (m-prefixed) testnet variants
 const tokenPrices: Record<string, number> = {
-  ETH: 2000,
-  USDC: 1,
-  USDT: 1,
-  WBTC: 42000,
-  wSOL: 150,
-  DAI: 1,
+  ETH: 2000, mWETH: 2000, WETH: 2000,
+  USDC: 1, mUSDC: 1,
+  USDT: 1, mUSDT: 1,
+  WBTC: 42000, mWBTC: 67848,
+  wSOL: 150, SOL: 150,
+  DAI: 1, mDAI: 1,
 }
 
 // Mock user balances
 const userBalances: Record<string, number> = {
-  ETH: 5.25,
-  USDC: 12500,
-  USDT: 8000,
-  WBTC: 0.15,
-  wSOL: 25.0,
-  DAI: 3500,
+  ETH: 5.25, mWETH: 5.25, WETH: 5.25,
+  USDC: 12500, mUSDC: 12500,
+  USDT: 8000, mUSDT: 8000,
+  WBTC: 0.15, mWBTC: 0.15,
+  wSOL: 25.0, SOL: 25.0,
+  DAI: 3500, mDAI: 3500,
 }
 
 export function AddLiquidityModal({

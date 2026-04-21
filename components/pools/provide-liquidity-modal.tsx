@@ -393,8 +393,8 @@ export function ProvideLiquidityModal({
 
                             {/* Price Inputs */}
                             <div className="flex gap-4">
-                                <div className="flex-1 space-y-1 rounded-xl border border-border/50 bg-secondary/20 p-3">
-                                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Min price</Label>
+                                <div className="group flex-1 space-y-1 rounded-xl border border-[#7FE5E5]/30 bg-[#7FE5E5]/[0.04] p-3 transition-colors focus-within:border-[#7FE5E5]/70 focus-within:bg-[#7FE5E5]/[0.08] hover:border-[#7FE5E5]/50">
+                                    <Label className="text-[10px] uppercase tracking-wider text-[#7FE5E5]">Min price ✎</Label>
                                     <div className="flex items-center">
                                         <Input
                                             type="number"
@@ -403,13 +403,13 @@ export function ProvideLiquidityModal({
                                                 setStrategy('custom')
                                                 setPriceLower(e.target.value)
                                             }}
-                                            className="border-0 bg-transparent text-xl font-bold p-0 focus-visible:ring-0 h-auto"
+                                            className="h-auto border-0 bg-transparent p-0 text-xl font-semibold text-white tabular-nums placeholder:text-white/30 focus-visible:ring-0"
                                         />
                                     </div>
-                                    <span className="text-[10px] text-muted-foreground">{token1.symbol} per {token0.symbol}</span>
+                                    <span className="text-[10px] text-white/50">{token1.symbol} per {token0.symbol}</span>
                                 </div>
-                                <div className="flex-1 space-y-1 rounded-xl border border-border/50 bg-secondary/20 p-3">
-                                    <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Max price</Label>
+                                <div className="group flex-1 space-y-1 rounded-xl border border-[#7FE5E5]/30 bg-[#7FE5E5]/[0.04] p-3 transition-colors focus-within:border-[#7FE5E5]/70 focus-within:bg-[#7FE5E5]/[0.08] hover:border-[#7FE5E5]/50">
+                                    <Label className="text-[10px] uppercase tracking-wider text-[#7FE5E5]">Max price ✎</Label>
                                     <div className="flex items-center">
                                         <Input
                                             type="number"
@@ -418,10 +418,10 @@ export function ProvideLiquidityModal({
                                                 setStrategy('custom')
                                                 setPriceUpper(e.target.value)
                                             }}
-                                            className="border-0 bg-transparent text-xl font-bold p-0 focus-visible:ring-0 h-auto"
+                                            className="h-auto border-0 bg-transparent p-0 text-xl font-semibold text-white tabular-nums placeholder:text-white/30 focus-visible:ring-0"
                                         />
                                     </div>
-                                    <span className="text-[10px] text-muted-foreground">{token1.symbol} per {token0.symbol}</span>
+                                    <span className="text-[10px] text-white/50">{token1.symbol} per {token0.symbol}</span>
                                 </div>
                             </div>
                         </div>
@@ -433,35 +433,38 @@ export function ProvideLiquidityModal({
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <TokenIcon token={token0 as any} size="sm" />
-                                    <Label className="font-semibold">{token0.symbol}</Label>
+                                    <Label className="font-semibold text-white">{token0.symbol}</Label>
                                 </div>
-                                <span className="flex flex-col items-end text-xs text-muted-foreground font-mono">
-                                    <span>Wallet: {balance0.toFixed(4)}</span>
-                                    <span className="text-emerald-500">Shared: {freeBalance0.toFixed(4)}</span>
+                                <span className="flex items-center gap-2 text-[12px]">
+                                    <span className="text-white/50">
+                                        Wallet <span className="text-white/80">{balance0.toFixed(4)}</span>
+                                    </span>
+                                    <span className="text-white/20">·</span>
+                                    <span className="text-white/50">
+                                        Shared <span className="text-[#7FE5E5]">{freeBalance0.toFixed(4)}</span>
+                                    </span>
                                 </span>
                             </div>
-                            <div className="relative">
+                            <div className="relative rounded-xl border border-[#7FE5E5]/30 bg-[#7FE5E5]/[0.04] transition-colors focus-within:border-[#7FE5E5]/70 focus-within:bg-[#7FE5E5]/[0.08] hover:border-[#7FE5E5]/50">
                                 <Input
                                     type="number"
-                                    placeholder="0.00"
+                                    placeholder="Enter amount"
                                     value={amount0}
                                     onChange={(e) => handleAmount0Change(e.target.value)}
-                                    className="pr-16 text-lg font-mono"
+                                    className="h-12 border-0 bg-transparent pr-16 text-lg font-semibold text-white tabular-nums placeholder:text-[#7FE5E5]/60 focus-visible:ring-0"
                                 />
-                                <Button
+                                <button
                                     type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    className="absolute right-1 top-1/2 h-7 -translate-y-1/2 text-xs"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-[#7FE5E5]/20 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.05em] text-[#7FE5E5] transition-colors hover:bg-[#7FE5E5]/30"
                                     onClick={handleMax0}
                                 >
                                     MAX
-                                </Button>
+                                </button>
                             </div>
                         </div>
 
                         <div className="flex items-center justify-center">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 font-bold">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#7FE5E5]/30 bg-[#7FE5E5]/10 font-bold text-[#7FE5E5]">
                                 +
                             </div>
                         </div>
@@ -471,37 +474,40 @@ export function ProvideLiquidityModal({
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <TokenIcon token={token1 as any} size="sm" />
-                                    <Label className="font-semibold">{token1.symbol}</Label>
+                                    <Label className="font-semibold text-white">{token1.symbol}</Label>
                                 </div>
-                                <span className="flex flex-col items-end text-xs text-muted-foreground font-mono">
-                                    <span>Wallet: {balance1.toFixed(4)}</span>
-                                    <span className="text-emerald-500">Shared: {freeBalance1.toFixed(4)}</span>
+                                <span className="flex items-center gap-2 text-[12px]">
+                                    <span className="text-white/50">
+                                        Wallet <span className="text-white/80">{balance1.toFixed(4)}</span>
+                                    </span>
+                                    <span className="text-white/20">·</span>
+                                    <span className="text-white/50">
+                                        Shared <span className="text-[#7FE5E5]">{freeBalance1.toFixed(4)}</span>
+                                    </span>
                                 </span>
                             </div>
-                            <div className="relative">
+                            <div className="relative rounded-xl border border-[#7FE5E5]/30 bg-[#7FE5E5]/[0.04] transition-colors focus-within:border-[#7FE5E5]/70 focus-within:bg-[#7FE5E5]/[0.08] hover:border-[#7FE5E5]/50">
                                 <Input
                                     type="number"
-                                    placeholder="0.00"
+                                    placeholder="Enter amount"
                                     value={amount1}
                                     onChange={(e) => handleAmount1Change(e.target.value)}
-                                    className="pr-16 text-lg font-mono"
+                                    className="h-12 border-0 bg-transparent pr-16 text-lg font-semibold text-white tabular-nums placeholder:text-[#7FE5E5]/60 focus-visible:ring-0"
                                 />
-                                <Button
+                                <button
                                     type="button"
-                                    variant="secondary"
-                                    size="sm"
-                                    className="absolute right-1 top-1/2 h-7 -translate-y-1/2 text-xs"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-[#7FE5E5]/20 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.05em] text-[#7FE5E5] transition-colors hover:bg-[#7FE5E5]/30"
                                     onClick={handleMax1}
                                 >
                                     MAX
-                                </Button>
+                                </button>
                             </div>
                         </div>
 
                         {/* Action Button */}
                         <div className="mt-4 flex-shrink-0">
                             <Button
-                                className="w-full relative py-6 text-lg font-bold bg-[#E11D48] hover:bg-[#BE123C] text-white transition-colors rounded-xl"
+                                className="w-full relative py-6 text-lg font-bold bg-[#7FE5E5] hover:bg-[#5dd4d4] text-black transition-colors rounded-xl disabled:opacity-60"
                                 disabled={isSubmitting || !isValid || !address || !!isWrongNetwork}
                                 onClick={handleSubmit}
                             >

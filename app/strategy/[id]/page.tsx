@@ -149,7 +149,7 @@ export default function StrategyDetailPage() {
                 onClick={() => setIsAddLiquidityOpen(true)}
                 className="rounded-lg bg-[#7FE5E5] px-5 py-2.5 text-[13px] font-semibold text-black transition-colors hover:bg-[#5dd4d4]"
               >
-                Deploy liquidity
+                Provide liquidity
               </button>
             )}
           </div>
@@ -281,7 +281,10 @@ export default function StrategyDetailPage() {
             open={isAddLiquidityOpen}
             onOpenChange={setIsAddLiquidityOpen}
             strategy={strategy}
-            currentPrice={0}
+            currentPrice={
+              // Mock price ratio: priceA / priceB from the modal's internal map
+              isCP ? 2000 : 1 // mWETH ≈ $2000, stables ≈ $1
+            }
           />
         )}
       </div>

@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { LoadingSpinner } from '@/components/loading-spinner'
 import { fetchStrategy } from '@/lib/api'
 import { useMappedTokens, useMappedChains } from '@/hooks/use-mapped-tokens'
 import { useDeployStrategy } from '@/hooks/use-deploy-strategy'
@@ -13,6 +12,7 @@ import { useWallet } from '@/contexts/wallet-context'
 import { BACKEND_CHAIN_IDS } from '@/lib/contracts'
 import { calculateRates } from '@/lib/swapvm/encoding'
 import type { Token, StrategyType } from '@/lib/types'
+import { MOCK_TOKENS, MOCK_CHAINS } from '@/lib/mock-demo-data'
 import type { Address } from 'viem'
 import {
   ArrowLeft,
@@ -105,9 +105,13 @@ function DeployPageContent() {
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [preselectedStrategyId, setPreselectedStrategyId] = useState<string | null>(null)
 
-  const { data: tokens, isLoading: tokensLoading, resolveAddress } = useMappedTokens()
-  const { data: chains, isLoading: chainsLoading } = useMappedChains()
-  const isLoading = tokensLoading || chainsLoading
+  const { data: apiTokens, resolveAddress } = useMappedTokens()
+  const { data: apiChains } = useMappedChains()
+
+  // Demo fallback — when the backend is empty / unreachable, keep the wizard
+  // usable with mocked tokens & chains so the user can always click through.
+  const tokens = apiTokens && apiTokens.length > 0 ? apiTokens : MOCK_TOKENS
+  const chains = apiChains && apiChains.length > 0 ? apiChains : MOCK_CHAINS
 
   const {
     execute: executeDeploy,
@@ -228,14 +232,6 @@ function DeployPageContent() {
   /* ==========================================================================
      Render states
      ========================================================================== */
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
-  }
 
   // Success overlay
   if (deployStep === 'done' && deployResult) {

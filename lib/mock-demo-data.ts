@@ -58,6 +58,16 @@ export const MOCK_UNICHAIN_CHAIN: Chain = {
   color: "#FF007A",
 }
 
+// ---------- Mock arrays used as fallbacks when the backend is empty/down ----------
+export const MOCK_TOKENS: Token[] = [
+  MOCK_TOKEN_ETH,
+  MOCK_TOKEN_USDC,
+  MOCK_TOKEN_DAI,
+  MOCK_TOKEN_WBTC,
+]
+
+export const MOCK_CHAINS: Chain[] = [MOCK_UNICHAIN_CHAIN]
+
 // ---------- Mock SwapVM strategies ----------
 export const MOCK_STRATEGIES: Strategy[] = [
   {

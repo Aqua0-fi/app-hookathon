@@ -295,7 +295,7 @@ export default function PoolDetailPage() {
         {tab === 'compare' && <CompareTab pool={pool} />}
         {tab === 'jit' && <JitEngineTab />}
 
-        {isProvideModalOpen && pool.isAqua0Enabled && !isMock && (
+        {isProvideModalOpen && pool.isAqua0Enabled && (
           <ProvideLiquidityModal
             open={isProvideModalOpen}
             onOpenChange={setIsProvideModalOpen}
