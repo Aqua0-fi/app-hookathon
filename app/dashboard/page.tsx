@@ -399,12 +399,14 @@ function DepositFlow() {
                 />
                 <FlowStep
                     n="02"
-                    title="SwapVM routes demand"
+                    title="Strategies pull from your deposit"
                     body={
                         <>
-                            Strategies built on{" "}
-                            <span className="border-b border-dotted border-white/40 text-white">1inch SwapVM</span>{" "}
-                            pull liquidity from your deposit every time an Aqua0 route wins.
+                            LPs can build strategies with{" "}
+                            <span className="border-b border-dotted border-white/40 text-white">SwapVM</span>{" "}
+                            (CP, stable swap, custom curves) or{" "}
+                            <span className="border-b border-dotted border-white/40 text-white">Uniswap V4 Hooks</span>
+                            {" "}(concentrated liquidity). Both draw from the same Shared Pool JIT.
                         </>
                     }
                     art={<FlowArt2 />}

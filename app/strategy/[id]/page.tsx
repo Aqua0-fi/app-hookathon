@@ -180,9 +180,9 @@ export default function StrategyDetailPage() {
           />
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-5">
           {/* AMM curve visualization */}
-          <div className="lg:col-span-2">
+          <div>
             <Panel>
               <PanelHeader
                 title={isCP ? 'Constant-product curve  ·  x · y = k' : 'Stable-swap curve  ·  flat near peg'}
@@ -221,59 +221,6 @@ export default function StrategyDetailPage() {
             </Panel>
           </div>
 
-          {/* Aqua0 SwapVM explainer */}
-          <div className="space-y-5">
-            <Panel>
-              <PanelHeader title="How SwapVM routes into this strategy" />
-              <ol className="space-y-3 text-[13px]">
-                {[
-                  {
-                    n: '01',
-                    body: (
-                      <>
-                        An aggregator (typically 1inch) queries SwapVM for a price on{' '}
-                        <span className="text-white">
-                          {strategy.tokenPair[0].symbol} → {strategy.tokenPair[1].symbol}
-                        </span>
-                        .
-                      </>
-                    ),
-                  },
-                  {
-                    n: '02',
-                    body: (
-                      <>
-                        SwapVM simulates this {typeLabel.toLowerCase()} curve against live reserves.
-                        If it beats every other venue, Aqua0 wins the route.
-                      </>
-                    ),
-                  },
-                  {
-                    n: '03',
-                    body: (
-                      <>
-                        Liquidity for the fill is pulled from the{' '}
-                        <span className="border-b border-dotted border-white/40 text-white">Shared Pool</span>{' '}
-                        JIT — the same capital that backs every other Aqua0 venue.
-                      </>
-                    ),
-                  },
-                  {
-                    n: '04',
-                    body: <>Fees accrue back to the Shared Pool, split pro-rata across LPs.</>,
-                  },
-                ].map((step) => (
-                  <li key={step.n} className="flex gap-3">
-                    <span className="mt-px text-[11px] tracking-[0.1em] text-[#7FE5E5]">
-                      {step.n}
-                    </span>
-                    <span className="text-white/70">{step.body}</span>
-                  </li>
-                ))}
-              </ol>
-            </Panel>
-
-          </div>
         </div>
 
         {isAddLiquidityOpen && (

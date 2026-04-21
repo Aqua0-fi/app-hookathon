@@ -518,7 +518,7 @@ function CompareTab({ pool }: { pool: V4Pool }) {
           {[
             'Same capital backs every Aqua0-hooked pool',
             'Earns fees from every swap across all venues',
-            'Zero idle capital — JIT materialization',
+            'Higher capital efficiency than classic V4',
             'Withdraw anytime from Shared Pool',
             'Single deposit, many positions',
           ].map((item) => (
