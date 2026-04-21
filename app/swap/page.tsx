@@ -246,7 +246,7 @@ export default function SwapPage() {
                       step={0.1}
                       className="flex-1"
                     />
-                    <span className="w-14 text-right font-mono text-[14px] text-white">{slippage}%</span>
+                    <span className="w-14 text-right text-[14px] text-white">{slippage}%</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -334,7 +334,7 @@ export default function SwapPage() {
               </span>
               {isConnected && (
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-[11px] text-white/40">
+                  <span className="text-[11px] text-white/40">
                     Balance: {fromBalance !== null ? fromBalance.toFixed(4) : '—'} {fromToken?.symbol}
                   </span>
                   {fromBalance !== null && fromBalance > 0 && (
@@ -440,7 +440,7 @@ export default function SwapPage() {
                               <span className="h-2 w-2 rounded-full bg-[#7FE5E5] shadow-[0_0_6px_#7FE5E5]" />
                               <span className="text-white/60">Aqua0 JIT pool</span>
                             </div>
-                            <span className="font-mono text-[#7FE5E5]">
+                            <span className="text-[#7FE5E5]">
                               {Number(jitAmt).toFixed(4)} {sym} ({jitPct.toFixed(1)}%)
                             </span>
                           </div>
@@ -449,13 +449,13 @@ export default function SwapPage() {
                               <span className="h-2 w-2 rounded-full bg-white/60" />
                               <span className="text-white/60">Real V4 liquidity</span>
                             </div>
-                            <span className="font-mono text-white/70">
+                            <span className="text-white/70">
                               {Number(realAmt).toFixed(4)} {sym} ({realPct.toFixed(1)}%)
                             </span>
                           </div>
                           <div className="flex items-center justify-between border-t border-white/10 pt-2">
                             <span className="text-white/60">Total out</span>
-                            <span className="font-mono font-semibold text-white">
+                            <span className="font-semibold text-white">
                               {Number(formatUnits(absTotalOut, dec)).toFixed(4)} {sym}
                             </span>
                           </div>
@@ -493,7 +493,7 @@ export default function SwapPage() {
               {exchangeRate && (
                 <div className="flex items-center justify-between">
                   <span className="text-white/50">Rate{quoteData.isExactSimulation ? '' : ' (est.)'}</span>
-                  <span className="font-mono text-white/80">
+                  <span className="text-white/80">
                     1 {fromToken?.symbol} = {exchangeRate} {toToken?.symbol}
                   </span>
                 </div>
@@ -501,12 +501,12 @@ export default function SwapPage() {
               {matchedPool && (
                 <div className="flex items-center justify-between">
                   <span className="text-white/50">Pool fee</span>
-                  <span className="font-mono text-white/80">{(matchedPool.fee / 10000).toFixed(2)}%</span>
+                  <span className="text-white/80">{(matchedPool.fee / 10000).toFixed(2)}%</span>
                 </div>
               )}
               <div className="flex items-center justify-between">
                 <span className="text-white/50">Max slippage</span>
-                <span className="font-mono text-white/80">{slippage}%</span>
+                <span className="text-white/80">{slippage}%</span>
               </div>
               {quoteData.isExactSimulation && (
                 <div className="flex items-center justify-between border-t border-white/10 pt-2">

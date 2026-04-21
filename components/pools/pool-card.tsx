@@ -149,7 +149,7 @@ function Metric({
       </p>
       <p
         className={`mt-1 text-[14px] font-semibold text-white ${
-          mono ? 'font-mono' : ''
+          ''
         }`}
       >
         {value}

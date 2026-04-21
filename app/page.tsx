@@ -8,8 +8,9 @@ import { useV4Pools } from '@/hooks/use-v4-pools'
 import { useMappedStrategies } from '@/hooks/use-mapped-strategies'
 import { useWallet } from '@/contexts/wallet-context'
 import { TokenPairIcon } from '@/components/token-icon'
-import type { Strategy, Token, Chain } from '@/lib/types'
+import type { Strategy } from '@/lib/types'
 import type { V4Pool } from '@/lib/v4-api'
+import { MOCK_POOLS, MOCK_STRATEGIES } from '@/lib/mock-demo-data'
 
 const CHAIN_NAMES: Record<number, string> = {
   8453: 'Base',
@@ -27,7 +28,7 @@ const CHAIN_PILLS: Record<number, { name: string; logo: string }> = {
   696969: { name: 'Local Anvil', logo: '/crypto/Base.png' },
 }
 
-type Filter = 'all' | 'hooks' | 'swapvm' | 'classic'
+type Filter = 'all' | 'hooks' | 'swapvm'
 
 export default function PoolsMarketplacePage() {
   const { chainId } = useWallet()
@@ -46,15 +47,14 @@ export default function PoolsMarketplacePage() {
   const effectiveStrategies: Strategy[] =
     strategies && strategies.length > 0 ? strategies : MOCK_STRATEGIES
 
-  // Counts for filter badges
+  // Counts for filter badges — Aqua0 alpha only exposes Aqua0-enabled venues,
+  // classic pools are hidden from the marketplace.
   const counts = useMemo(() => {
     const hooksCount = effectivePools.filter((p) => p.isAqua0Enabled).length
-    const classicCount = effectivePools.filter((p) => !p.isAqua0Enabled).length
     const swapvmCount = effectiveStrategies.length
     return {
-      all: hooksCount + classicCount + swapvmCount,
+      all: hooksCount + swapvmCount,
       hooks: hooksCount,
-      classic: classicCount,
       swapvm: swapvmCount,
     }
   }, [effectivePools, effectiveStrategies])
@@ -62,17 +62,11 @@ export default function PoolsMarketplacePage() {
   const isLoading = isLoadingPools || isLoadingStrategies
   const chainName = CHAIN_NAMES[activeChainId] ?? `Chain ${activeChainId}`
 
-  // Filtered lists
+  // Filtered lists — classic V4 pools excluded entirely from alpha
   const showHooks = filter === 'all' || filter === 'hooks'
-  const showClassic = filter === 'all' || filter === 'classic'
   const showSwapVM = filter === 'all' || filter === 'swapvm'
 
-  const visiblePools = effectivePools.filter((p) => {
-    if (filter === 'all') return true
-    if (filter === 'hooks') return p.isAqua0Enabled
-    if (filter === 'classic') return !p.isAqua0Enabled
-    return false // swapvm filter hides V4 pools
-  })
+  const visiblePools = showHooks ? effectivePools.filter((p) => p.isAqua0Enabled) : []
 
   const visibleStrategies = showSwapVM ? effectiveStrategies : []
 
@@ -103,15 +97,9 @@ export default function PoolsMarketplacePage() {
 
           {/* Filter tabs */}
           <div className="inline-flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/[0.02] p-1">
-            {(['all', 'hooks', 'swapvm', 'classic'] as const).map((f) => {
+            {(['all', 'hooks', 'swapvm'] as const).map((f) => {
               const label =
-                f === 'all'
-                  ? 'All'
-                  : f === 'hooks'
-                    ? 'Aqua0 Hooks'
-                    : f === 'swapvm'
-                      ? 'SwapVM'
-                      : 'Classic'
+                f === 'all' ? 'All' : f === 'hooks' ? 'Aqua0 Hooks' : 'SwapVM'
               const active = filter === f
               return (
                 <button
@@ -137,8 +125,14 @@ export default function PoolsMarketplacePage() {
           </div>
         </div>
 
+        {/* Build-your-own CTAs — surfaced high on the page so creating a
+            strategy is a top-level action, not a hidden footer. */}
+        <BuildYourOwnCTA />
+
         {/* Educational explainer */}
-        <PoolsExplainer />
+        <div className="mt-8">
+          <PoolsExplainer />
+        </div>
 
         {/* Subbar */}
         <div className="mb-5 mt-10 flex items-center justify-between">
@@ -162,8 +156,11 @@ export default function PoolsMarketplacePage() {
           </div>
         </div>
 
-        {/* Grid */}
-        {isLoading ? (
+        {/* Grid — skeletons only when backend is loading AND we have no
+            fallback mocks to fill the view with. With the current mock
+            setup, totalVisible is never 0, so skeletons are effectively
+            skipped and demo cards render immediately. */}
+        {isLoading && totalVisible === 0 ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
               <PoolCardSkeleton key={i} />
@@ -174,7 +171,7 @@ export default function PoolsMarketplacePage() {
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {/* V4 Hook pools */}
-            {(showHooks || showClassic) &&
+            {showHooks &&
               visiblePools.map((pool) => (
                 <PoolCard
                   key={`pool-${pool.poolId}`}
@@ -192,9 +189,6 @@ export default function PoolsMarketplacePage() {
             ))}
           </div>
         )}
-
-        {/* CTA — build your own */}
-        <BuildYourOwnCTA />
       </div>
     </div>
   )
@@ -270,7 +264,7 @@ function StrategyCardAlpha({
           <p className="text-[10px] uppercase tracking-[0.1em] text-white/40">
             TVL
           </p>
-          <p className="mt-1 font-mono text-[16px] font-semibold tabular-nums text-white">
+          <p className="mt-1 text-[16px] font-semibold tabular-nums text-white">
             {formatTVL(strategy.tvl)}
           </p>
         </div>
@@ -352,7 +346,7 @@ function MetricMini({
       </p>
       <p
         className={`mt-1 text-[12px] font-semibold text-white ${
-          mono ? 'font-mono' : ''
+          ''
         }`}
       >
         {value}
@@ -372,11 +366,10 @@ function formatTVL(tvl: number): string {
    ========================================================================== */
 
 function EmptyState({ filter }: { filter: Filter }) {
-  const messages = {
+  const messages: Record<Filter, string> = {
     all: 'No pools or strategies found on this chain.',
     hooks: 'No Aqua0 Hook pools yet.',
     swapvm: 'No SwapVM strategies yet.',
-    classic: 'No Classic V4 pools yet.',
   }
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.015] py-16 text-center">
@@ -494,7 +487,7 @@ function ExplainerStep({
       <div className="flex h-[80px] items-center justify-center text-[#7FE5E5]">
         {art}
       </div>
-      <div className="font-mono text-[11px] tracking-[0.1em] text-[#7FE5E5]">
+      <div className="text-[11px] tracking-[0.1em] text-[#7FE5E5]">
         {n}
       </div>
       <div className="text-[16px] font-semibold tracking-[-0.01em] text-white">
@@ -677,117 +670,3 @@ function DotMarkMini() {
     </svg>
   )
 }
-
-/* ==========================================================================
-   Demo mocks — shown when the backend returns no data for the active chain.
-   Gives the alpha three tangible cards on the pools marketplace:
-     • SwapVM constant-product strategy   (mWETH / mUSDC)
-     • SwapVM stable-swap strategy        (mUSDC / mDAI)
-     • Aqua0-enabled V4 Hook pool         (mWBTC / mUSDC, concentrated)
-   Delete this block once real backend data is flowing.
-   ========================================================================== */
-
-const MOCK_TOKEN_ETH: Token = {
-  symbol: 'mWETH',
-  name: 'Mock Wrapped Ether',
-  logo: '/crypto/ETH.png',
-  decimals: 18,
-  address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-}
-const MOCK_TOKEN_USDC: Token = {
-  symbol: 'mUSDC',
-  name: 'Mock USDC',
-  logo: '/crypto/USDC.png',
-  decimals: 6,
-  address: '0x1111111111111111111111111111111111111111',
-}
-const MOCK_TOKEN_DAI: Token = {
-  symbol: 'mDAI',
-  name: 'Mock DAI',
-  logo: '/crypto/DAI.png',
-  decimals: 18,
-  address: '0x2222222222222222222222222222222222222222',
-}
-const MOCK_TOKEN_WBTC: Token = {
-  symbol: 'mWBTC',
-  name: 'Mock Wrapped Bitcoin',
-  logo: '/crypto/BTC.png',
-  decimals: 8,
-  address: '0x3333333333333333333333333333333333333333',
-}
-
-const MOCK_UNICHAIN_CHAIN: Chain = {
-  id: 'unichain',
-  name: 'Unichain Sepolia',
-  logo: '/crypto/Unichain.png',
-  color: '#FF007A',
-}
-
-const MOCK_STRATEGIES: Strategy[] = [
-  {
-    id: 'demo-cp-weth-usdc',
-    name: 'Constant Product',
-    type: 'constant-product',
-    tokenPair: [MOCK_TOKEN_ETH, MOCK_TOKEN_USDC],
-    apy: 24.7,
-    tvl: 1_250_000,
-    riskLevel: 'medium',
-    supportedChains: [MOCK_UNICHAIN_CHAIN],
-    feeTier: 0.3,
-    createdAt: '2026-02-15T00:00:00Z',
-  },
-  {
-    id: 'demo-ss-usdc-dai',
-    name: 'Stable Swap',
-    type: 'stable-swap',
-    tokenPair: [MOCK_TOKEN_USDC, MOCK_TOKEN_DAI],
-    apy: 8.3,
-    tvl: 4_800_000,
-    riskLevel: 'low',
-    supportedChains: [MOCK_UNICHAIN_CHAIN],
-    feeTier: 0.05,
-    createdAt: '2026-02-20T00:00:00Z',
-  },
-]
-
-const MOCK_POOLS: V4Pool[] = [
-  {
-    poolId:
-      '0xdemodemodemodemodemodemodemodemodemodemodemodemodemodemodemodemo',
-    poolKey: {
-      currency0: MOCK_TOKEN_WBTC.address,
-      currency1: MOCK_TOKEN_USDC.address,
-      fee: 3000,
-      tickSpacing: 60,
-      hooks: '0xaqua0aqua0aqua0aqua0aqua0aqua0aqua0aqua0',
-    },
-    label: 'mWBTC / mUSDC · 0.30%',
-    token0: {
-      address: MOCK_TOKEN_WBTC.address,
-      symbol: MOCK_TOKEN_WBTC.symbol,
-      decimals: MOCK_TOKEN_WBTC.decimals,
-    },
-    token1: {
-      address: MOCK_TOKEN_USDC.address,
-      symbol: MOCK_TOKEN_USDC.symbol,
-      decimals: MOCK_TOKEN_USDC.decimals,
-    },
-    currentTick: 100000,
-    currentPrice: 67848,
-    sqrtPriceX96: '0',
-    fee: 3000,
-    tickSpacing: 60,
-    // Bell-curve liquidity distribution so the LiquidityAtlas heatmap renders nicely
-    aggregatedRanges: [
-      { tickLower: 96000, tickUpper: 97000, totalLiquidity: '200000000000000' },
-      { tickLower: 97000, tickUpper: 98000, totalLiquidity: '500000000000000' },
-      { tickLower: 98000, tickUpper: 99000, totalLiquidity: '1200000000000000' },
-      { tickLower: 99000, tickUpper: 100000, totalLiquidity: '2500000000000000' },
-      { tickLower: 100000, tickUpper: 101000, totalLiquidity: '2500000000000000' },
-      { tickLower: 101000, tickUpper: 102000, totalLiquidity: '1200000000000000' },
-      { tickLower: 102000, tickUpper: 103000, totalLiquidity: '500000000000000' },
-      { tickLower: 103000, tickUpper: 104000, totalLiquidity: '200000000000000' },
-    ],
-    isAqua0Enabled: true,
-  },
-]

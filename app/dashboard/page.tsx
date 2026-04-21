@@ -158,11 +158,11 @@ export default function DashboardPage() {
                                 </span>
                             </span>
                             <span className="text-white/20">·</span>
-                            <span className="font-mono text-[12px] text-white/70">
+                            <span className="text-[12px] text-white/70">
                                 {address ? truncate(address) : 'Connected'}
                             </span>
                             <span className="text-white/20">·</span>
-                            <span className="font-mono text-[12px] text-white/40">
+                            <span className="text-[12px] text-white/40">
                                 Chain ID {activeChainId}
                             </span>
                         </div>
@@ -251,7 +251,7 @@ export default function DashboardPage() {
                                                 <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
                                                     <div>
                                                         <span className="text-muted-foreground block mb-1">Tick Range</span>
-                                                        <Badge variant="secondary" className="font-mono text-[10px]">{pos.tickLower} ↔ {pos.tickUpper}</Badge>
+                                                        <Badge variant="secondary" className="text-[10px]">{pos.tickLower} ↔ {pos.tickUpper}</Badge>
                                                     </div>
                                                     <div>
                                                         <span className="text-muted-foreground block mb-1">Virtual Shares</span>
@@ -272,7 +272,7 @@ export default function DashboardPage() {
                                                         </p>
                                                     </div>
                                                     <div>
-                                                        <span className="text-[10px] font-mono text-muted-foreground/60 block mt-1">ID: {pos.positionId.slice(0, 10)}...</span>
+                                                        <span className="text-[10px] text-muted-foreground/60 block mt-1">ID: {pos.positionId.slice(0, 10)}...</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -361,7 +361,7 @@ function DashboardEmpty({ connect }: { connect: () => void }) {
 
                     <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-white/40">
                         <span>Powered by</span>
-                        <span className="rounded border border-white/20 bg-white/5 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-white/80">
+                        <span className="rounded border border-white/20 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-white/80">
                             Privy
                         </span>
                         <span>· wallet or email, your choice</span>
@@ -431,7 +431,7 @@ function FlowStep({ n, title, body, art }: { n: string; title: string; body: Rea
             <div className="flex h-[110px] items-center justify-center text-[#7FE5E5]">
                 {art}
             </div>
-            <div className="font-mono text-[11px] tracking-[0.1em] text-[#7FE5E5]">{n}</div>
+            <div className="text-[11px] tracking-[0.1em] text-[#7FE5E5]">{n}</div>
             <div className="text-[18px] font-semibold tracking-[-0.01em] text-white">{title}</div>
             <div className="text-[13px] leading-[1.55] text-white/60">{body}</div>
         </div>
@@ -635,7 +635,7 @@ function FeesSummary({
                         {chips.map((c) => (
                             <span
                                 key={c.symbol}
-                                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[11px] text-white/80"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-white/80"
                             >
                                 <Image
                                     src={getTokenLogo(c.symbol)}
@@ -818,7 +818,7 @@ function FaucetModal({
                                 </div>
                             </div>
                             <div className="text-right">
-                                <div className="font-mono text-[14px] text-white tabular-nums">
+                                <div className="text-[14px] text-white tabular-nums">
                                     {t.amount}
                                 </div>
                                 <div className="text-[10px] uppercase tracking-[0.1em] text-white/40">

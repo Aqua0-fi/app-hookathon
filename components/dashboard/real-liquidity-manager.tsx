@@ -149,7 +149,7 @@ export function RealLiquidityManager({ pools, onDepositSuccess }: RealLiquidityM
                                 <TokenIcon token={token as any} size="lg" />
                                 <div>
                                     <div className="text-[15px] font-semibold text-white">{token.symbol}</div>
-                                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[12px]">
+                                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
                                         <span className="text-white/50">
                                             Wallet <span className="text-white/80">{walletFmt}</span>
                                         </span>
@@ -227,7 +227,7 @@ export function RealLiquidityManager({ pools, onDepositSuccess }: RealLiquidityM
 
                     {activeToken && (
                         <div className="space-y-4 py-4">
-                            <div className="flex justify-between items-center text-sm font-mono">
+                            <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Available to {actionDialog?.type}:</span>
                                 <span>
                                     {Number(formatUnits(BigInt(actionDialog?.type === 'deposit' ? (activeBalance?.walletBalance || "0") : (activeBalance?.freeBalance || "0")), activeToken.decimals)).toFixed(4)} {activeToken.symbol}
@@ -240,7 +240,7 @@ export function RealLiquidityManager({ pools, onDepositSuccess }: RealLiquidityM
                                     placeholder="0.00"
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
-                                    className="pr-16 text-lg font-mono"
+                                    className="pr-16 text-lg"
                                     disabled={isSubmitting}
                                 />
                                 <Button

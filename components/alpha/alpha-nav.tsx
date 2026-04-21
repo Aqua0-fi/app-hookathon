@@ -46,7 +46,7 @@ export function AlphaNav() {
         <span className="text-[16px] font-semibold tracking-[0.01em] text-white">
           Aqua0
         </span>
-        <span className="ml-1 rounded border border-[#7FE5E5]/60 px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.15em] text-[#7FE5E5]">
+        <span className="ml-1 rounded border border-[#7FE5E5]/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em] text-[#7FE5E5]">
           Alpha
         </span>
       </Link>
