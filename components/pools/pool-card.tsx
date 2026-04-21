@@ -1,135 +1,313 @@
 "use client"
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import Image from 'next/image'
+import { useMemo } from 'react'
 import { TokenPairIcon } from '@/components/token-icon'
 import type { V4Pool } from '@/lib/v4-api'
-import { ArrowUpRight, TrendingUp, Lock } from 'lucide-react'
 
 interface PoolCardProps {
   pool: V4Pool
+  chainId?: number
 }
 
-export function PoolCard({ pool }: PoolCardProps) {
-  const router = useRouter()
+const CHAIN_PILLS: Record<number, { name: string; logo: string }> = {
+  8453: { name: 'Base', logo: '/crypto/Base.png' },
+  84532: { name: 'Base Sepolia', logo: '/crypto/Base.png' },
+  130: { name: 'Unichain', logo: '/crypto/Unichain.png' },
+  1301: { name: 'Unichain Sepolia', logo: '/crypto/Unichain.png' },
+  696969: { name: 'Local Anvil', logo: '/crypto/Base.png' },
+}
 
-  const handleSeeDetails = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    router.push(`/pools/${pool.poolId}`)
-  }
+const getLogo = (symbol: string) => {
+  const clean = symbol.replace(/^m/, '')
+  if (clean === 'WBTC') return '/crypto/BTC.png'
+  return `/crypto/${clean}.png`
+}
 
-  // TokenPairIcon expects an array of { symbol, logo }
-  // We don't have exact logo URLs from the V4 pools registry in MVP, so we fallback to assuming they match `/crypto/SYMBOL.png`
-  const getLogo = (symbol: string) => {
-    const cleanSymbol = symbol.replace(/^m/, '');
-    if (cleanSymbol === 'WBTC') return '/crypto/BTC.png';
-    return `/crypto/${cleanSymbol}.png`;
-  };
-
+export function PoolCard({ pool, chainId = 1301 }: PoolCardProps) {
   const tokenPair = [
     { ...pool.token0, logo: getLogo(pool.token0.symbol) },
     { ...pool.token1, logo: getLogo(pool.token1.symbol) },
   ]
+  const chain = CHAIN_PILLS[chainId] ?? CHAIN_PILLS[1301]
 
   return (
-    <Card className="group relative flex h-full flex-col overflow-hidden border-border/50 bg-secondary/20 transition-all duration-300 hover:border-border hover:bg-secondary/40">
-      <Link href={`/pools/${pool.poolId}`} className="absolute inset-0 z-10">
-        <span className="sr-only">View pool details</span>
-      </Link>
-
-      <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: pool.isAqua0Enabled ? 'radial-gradient(ellipse at top left, #10b98106, transparent 70%)' : 'radial-gradient(ellipse at top left, #f59e0b06, transparent 70%)' }} />
-
-      <CardContent className="relative flex-1 p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <TokenPairIcon tokens={tokenPair as any} size="lg" />
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Uniswap V4</p>
-              <h3 className="text-base font-semibold">
-                {pool.token0.symbol}/{pool.token1.symbol}
-              </h3>
-              {pool.isAqua0Enabled ? (
-                <span className="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-violet-500/10 text-violet-400">
-                  Aqua0 Hook
-                </span>
-              ) : (
-                <span className="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-amber-500/10 text-amber-400">
-                  Traditional V4
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex flex-col items-end">
-            {pool.isAqua0Enabled ? (
-              <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1">
-                <TrendingUp className="h-3 w-3 text-emerald-400" />
-                <span className="text-sm font-bold text-emerald-400">JIT Liq</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-1">
-                <Lock className="h-3 w-3 text-amber-400" />
-                <span className="text-sm font-bold text-amber-400">Isolated</span>
-              </div>
-            )}
+    <Link
+      href={`/pools/${pool.poolId}`}
+      className="group flex h-full flex-col rounded-xl border border-white/10 bg-[#0d0d0d] p-5 transition-colors hover:border-white/30"
+    >
+      {/* Top: pair + name */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <TokenPairIcon tokens={tokenPair as never} size="lg" />
+          <div>
+            <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-white">
+              {pool.token0.symbol} / {pool.token1.symbol}
+            </h3>
+            <p className="mt-0.5 text-[11px] text-white/50">
+              Uniswap V4 · {(pool.fee / 10000).toFixed(2)}%
+            </p>
           </div>
         </div>
+      </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-white/[0.03] p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Swap Fee</p>
-            <p className="mt-1 text-lg font-bold tabular-nums">{(pool.fee / 10000).toFixed(2)}%</p>
-          </div>
-          <div className="rounded-lg bg-white/[0.03] p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Price</p>
-            <p className="mt-1 text-lg font-bold tabular-nums">{pool.currentPrice.toPrecision(5)}</p>
-          </div>
-        </div>
+      {/* Type + Tech badges */}
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {/* Type — V4 is always concentrated liquidity */}
+        <Badge label="Concentrated" tone="neutral" />
+        {/* Tech */}
+        {pool.isAqua0Enabled ? (
+          <Badge label="Hook · Aqua0" tone="aqua" pulse />
+        ) : (
+          <Badge label="Hook · Classic" tone="dim" />
+        )}
+      </div>
 
-        <Button
-          className="relative z-20 mt-4 w-full gap-2 border-border/50 bg-white/[0.04] text-foreground transition-all duration-200 hover:bg-white/[0.08] hover:gap-3"
-          variant="outline"
-          onClick={handleSeeDetails}
-        >
-          See Details
-          <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-        </Button>
-      </CardContent>
-    </Card>
+      {/* Liquidity heatmap */}
+      <div className="mt-4 mb-3">
+        <LiquidityAtlas pool={pool} />
+      </div>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3">
+        <Metric label="APY" value="—" hint="Live data soon" />
+        <Metric label="TVL" value="—" hint="Live data soon" />
+        <Metric
+          label="Price"
+          value={pool.currentPrice.toPrecision(4)}
+          mono
+        />
+      </div>
+
+      {/* Footer: chain + open */}
+      <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white/70">
+          <Image
+            src={chain.logo}
+            alt={chain.name}
+            width={12}
+            height={12}
+            className="h-3 w-3 rounded-full"
+            unoptimized
+          />
+          {chain.name}
+        </span>
+        <span className="text-[12px] text-white/60 transition-colors group-hover:text-[#7FE5E5]">
+          Open →
+        </span>
+      </div>
+    </Link>
   )
 }
 
+/* ---------- Badges ---------- */
+function Badge({
+  label,
+  tone,
+  pulse,
+}: {
+  label: string
+  tone: 'aqua' | 'neutral' | 'dim' | 'violet' | 'sky' | 'amber'
+  pulse?: boolean
+}) {
+  const styles = {
+    aqua: 'border-[#7FE5E5]/30 bg-[#7FE5E5]/10 text-[#7FE5E5]',
+    neutral: 'border-white/10 bg-white/[0.04] text-white/80',
+    dim: 'border-white/10 bg-white/[0.02] text-white/50',
+    violet: 'border-violet-300/30 bg-violet-300/10 text-violet-200',
+    sky: 'border-sky-300/30 bg-sky-300/10 text-sky-200',
+    amber: 'border-amber-300/30 bg-amber-300/10 text-amber-200',
+  }[tone]
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${styles}`}
+    >
+      {pulse && (
+        <span className="h-1 w-1 rounded-full bg-current shadow-[0_0_4px_currentColor]" />
+      )}
+      {label}
+    </span>
+  )
+}
+
+function Metric({
+  label,
+  value,
+  hint,
+  mono,
+}: {
+  label: string
+  value: string
+  hint?: string
+  mono?: boolean
+}) {
+  return (
+    <div title={hint}>
+      <p className="text-[10px] uppercase tracking-[0.1em] text-white/40">
+        {label}
+      </p>
+      <p
+        className={`mt-1 text-[14px] font-semibold text-white ${
+          mono ? 'font-mono' : ''
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
+/* ---------- Mini liquidity heatmap ----------
+   For Aqua0-enabled V4 hooks: each bar is split into two stacked segments,
+   representing the real seed liquidity (bottom, white) vs the virtual JIT
+   liquidity drawn from the Aqua0 Shared Pool (top, aqua).
+   For classic V4 pools: single-color white bars (all real liquidity).
+*/
+const REAL_LIQUIDITY_RATIO = 0.22 // ~22% real seed, ~78% shared (visual approx)
+
+function LiquidityAtlas({ pool }: { pool: V4Pool }) {
+  const BUCKETS = 31
+  const cells = useMemo(() => {
+    const ranges = pool.aggregatedRanges ?? []
+    if (ranges.length === 0) {
+      // Synthetic bell curve fallback so empty pools still render
+      const center = Math.floor(BUCKETS / 2)
+      return Array.from({ length: BUCKETS }, (_, i) => {
+        const d = Math.abs(i - center)
+        return Math.exp(-(d * d) / (2 * 4 * 4))
+      })
+    }
+    const minTick = Math.min(...ranges.map((r) => r.tickLower))
+    const maxTick = Math.max(...ranges.map((r) => r.tickUpper))
+    const tickStep = (maxTick - minTick) / BUCKETS || 1
+    const bins = new Array(BUCKETS).fill(0)
+    ranges.forEach((r) => {
+      const liq = Number(r.totalLiquidity) || 0
+      for (let i = 0; i < BUCKETS; i++) {
+        const binStart = minTick + i * tickStep
+        const binEnd = binStart + tickStep
+        if (binEnd >= r.tickLower && binStart <= r.tickUpper) bins[i] += liq
+      }
+    })
+    const max = Math.max(...bins, 1)
+    return bins.map((v) => v / max)
+  }, [pool.aggregatedRanges])
+
+  const isAqua0 = pool.isAqua0Enabled
+  const center = Math.floor(BUCKETS / 2)
+
+  return (
+    <div>
+      <div className="relative h-12">
+        <div className="absolute inset-0 flex items-end gap-px">
+          {cells.map((v, i) => {
+            const isCenter = i === center
+            const barHeight = Math.max(8, v * 100)
+
+            if (isAqua0) {
+              // Stacked: real (bottom, white) + shared (top, aqua)
+              return (
+                <div
+                  key={i}
+                  className="flex flex-1 items-end"
+                  style={{ height: '100%' }}
+                >
+                  <div
+                    className="relative w-full"
+                    style={{ height: `${barHeight}%` }}
+                  >
+                    {/* Shared liquidity (top portion — Aqua0 JIT) */}
+                    <div
+                      className="absolute left-0 right-0 top-0 bg-[#7FE5E5]"
+                      style={{
+                        height: `${(1 - REAL_LIQUIDITY_RATIO) * 100}%`,
+                        opacity: isCenter ? 0.95 : 0.35 + v * 0.45,
+                      }}
+                    />
+                    {/* Real liquidity (bottom portion — seed deposit) */}
+                    <div
+                      className="absolute bottom-0 left-0 right-0 bg-white"
+                      style={{
+                        height: `${REAL_LIQUIDITY_RATIO * 100}%`,
+                        opacity: isCenter ? 0.9 : 0.4 + v * 0.3,
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            }
+
+            // Classic V4 pool — single-color white bars
+            return (
+              <div
+                key={i}
+                className="flex flex-1 items-end"
+                style={{ height: '100%' }}
+              >
+                <div
+                  className={`w-full ${isCenter ? 'bg-[#7FE5E5]' : 'bg-white'}`}
+                  style={{
+                    height: `${barHeight}%`,
+                    opacity: isCenter ? 0.85 : 0.15 + v * 0.5,
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Legend — only for Aqua0 hooks to explain the two liquidity layers */}
+      {isAqua0 && (
+        <div className="mt-2 flex items-center gap-3 text-[9px] uppercase tracking-[0.1em] text-white/40">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-sm bg-white opacity-70" />
+            Real
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-sm bg-[#7FE5E5]" />
+            Shared · Aqua0
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ---------- Skeleton ---------- */
 export function PoolCardSkeleton() {
-    return (
-        <Card className="flex h-full flex-col overflow-hidden border-border/50 bg-secondary/20">
-            <CardContent className="flex-1 p-5">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="flex -space-x-2">
-                            <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-                            <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="h-4 w-28 animate-pulse rounded bg-muted" />
-                            <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-                        </div>
-                    </div>
-                    <div className="h-7 w-16 animate-pulse rounded-full bg-muted" />
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                    {[1, 2].map((i) => (
-                        <div key={i} className="rounded-lg bg-white/[0.03] p-3 space-y-2">
-                            <div className="h-2.5 w-8 animate-pulse rounded bg-muted" />
-                            <div className="h-6 w-14 animate-pulse rounded bg-muted" />
-                        </div>
-                    ))}
-                </div>
-
-                <div className="mt-4 h-10 w-full animate-pulse rounded-md bg-muted" />
-            </CardContent>
-        </Card>
-    )
+  return (
+    <div className="flex h-full flex-col rounded-xl border border-white/10 bg-[#0d0d0d] p-5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex -space-x-2">
+            <div className="h-9 w-9 animate-pulse rounded-full bg-white/10" />
+            <div className="h-9 w-9 animate-pulse rounded-full bg-white/10" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-4 w-28 animate-pulse rounded bg-white/10" />
+            <div className="h-3 w-20 animate-pulse rounded bg-white/10" />
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 flex gap-1.5">
+        <div className="h-4 w-20 animate-pulse rounded-full bg-white/10" />
+        <div className="h-4 w-24 animate-pulse rounded-full bg-white/10" />
+      </div>
+      <div className="mt-4 mb-3 h-12 animate-pulse rounded bg-white/[0.04]" />
+      <div className="grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="space-y-1.5">
+            <div className="h-2.5 w-8 animate-pulse rounded bg-white/10" />
+            <div className="h-4 w-12 animate-pulse rounded bg-white/10" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3">
+        <div className="h-5 w-20 animate-pulse rounded-full bg-white/10" />
+        <div className="h-3 w-12 animate-pulse rounded bg-white/10" />
+      </div>
+    </div>
+  )
 }
