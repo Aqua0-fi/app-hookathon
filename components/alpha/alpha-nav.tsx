@@ -36,7 +36,7 @@ export function AlphaNav() {
       {/* Left — logo + brand + ALPHA tag */}
       <Link href="/" className="flex items-center gap-2.5">
         <Image
-          src="/aqua0.png"
+          src="/aqua0-logo.png"
           alt="Aqua0"
           width={24}
           height={24}

@@ -5,7 +5,7 @@ export function AlphaFooter() {
     <footer className="relative z-10 mt-auto flex flex-col items-start justify-between gap-4 border-t border-white/10 bg-black/40 px-6 py-6 text-[13px] sm:flex-row sm:items-center sm:px-10">
       <div className="flex items-center gap-2.5">
         <Image
-          src="/aqua0.png"
+          src="/aqua0-logo.png"
           alt="Aqua0"
           width={18}
           height={18}
