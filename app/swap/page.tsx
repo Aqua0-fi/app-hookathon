@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
@@ -15,7 +13,6 @@ import {
 } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { TokenSelector } from '@/components/swap/token-selector'
-import { ChainIcon } from '@/components/chain-icon'
 import { useMappedTokens, useMappedChains } from '@/hooks/use-mapped-tokens'
 import { useV4Pools } from '@/hooks/use-v4-pools'
 import { useSwapQuote } from '@/hooks/use-swap-quote'
@@ -29,6 +26,7 @@ import { useWallet } from '@/contexts/wallet-context'
 import { useBalance, useSwitchChain } from 'wagmi'
 import { base, baseSepolia } from 'wagmi/chains'
 import type { Address } from 'viem'
+import Image from 'next/image'
 
 // Map our internal chain IDs to wagmi chain IDs
 const chainIdMap: Record<string, number[]> = {
@@ -205,101 +203,41 @@ export default function SwapPage() {
     ? (Number(quoteData.amountOut) / Number(fromAmount)).toFixed(6)
     : null
 
-  // Chain-specific accent color for background orbs
-  const chainColor = selectedChain?.color ?? '#0052FF'
-
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 -z-10">
-        {/* Animated gradient orbs — color follows selected chain */}
-        <div
-          className="absolute w-[500px] h-[500px] rounded-full blur-[120px] transition-colors duration-700"
-          style={{
-            backgroundColor: `${chainColor}40`,
-            animation: 'float1 8s ease-in-out infinite',
-            top: '10%',
-            left: '10%',
-          }}
-        />
-        <div
-          className="absolute w-[400px] h-[400px] rounded-full blur-[100px] transition-colors duration-700"
-          style={{
-            backgroundColor: `${chainColor}33`,
-            animation: 'float2 10s ease-in-out infinite',
-            bottom: '20%',
-            right: '10%',
-          }}
-        />
-        <div
-          className="absolute w-[350px] h-[350px] rounded-full blur-[80px] transition-colors duration-700"
-          style={{
-            backgroundColor: `${chainColor}26`,
-            animation: 'float3 12s ease-in-out infinite',
-            top: '50%',
-            left: '50%',
-          }}
-        />
-
-        {/* Grid pattern */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '50px 50px',
-          }}
-        />
-
-        {/* Radial gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
-
-        {/* CSS Animations */}
-        <style jsx>{`
-          @keyframes float1 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(50px, 30px) scale(1.1); }
-            50% { transform: translate(20px, -40px) scale(0.95); }
-            75% { transform: translate(-30px, 20px) scale(1.05); }
-          }
-          @keyframes float2 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(-40px, -30px) scale(1.05); }
-            50% { transform: translate(30px, 50px) scale(1.1); }
-            75% { transform: translate(20px, -20px) scale(0.95); }
-          }
-          @keyframes float3 {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); }
-            33% { transform: translate(-40%, -60%) scale(1.15); }
-            66% { transform: translate(-60%, -40%) scale(0.9); }
-          }
-        `}</style>
-      </div>
-
-      <div className="mx-auto max-w-lg px-4 py-8 sm:px-6 lg:px-8 relative z-10">
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-[520px] px-4 py-12 sm:px-6">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Swap</h1>
-            <p className="text-sm text-muted-foreground">
-              Trade tokens on {selectedChain?.name ?? 'Base'}
+            <div className="mb-2 inline-flex items-center gap-2.5 text-[11px] uppercase tracking-[0.3em] text-white/60">
+              <DotMarkMini />
+              Swap
+            </div>
+            <p className="text-[13px] text-white/50">
+              Trade on {selectedChain?.name ?? 'Unichain Sepolia'}
             </p>
           </div>
 
           {/* Settings */}
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
+              <button
+                className="rounded-full border border-white/10 p-2 text-white/60 transition-colors hover:border-white/30 hover:text-white"
+                aria-label="Swap settings"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
             </DialogTrigger>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="max-w-sm border-white/10 bg-[#0d0d0d]">
               <DialogHeader>
-                <DialogTitle>Swap Settings</DialogTitle>
+                <DialogTitle className="text-white">Swap settings</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Slippage Tolerance</Label>
-                  <div className="flex items-center gap-4">
+              <div className="space-y-5 pt-2">
+                <div className="space-y-3">
+                  <Label className="text-[12px] uppercase tracking-[0.15em] text-white/60">
+                    Slippage tolerance
+                  </Label>
+                  <div className="flex items-center gap-3">
                     <Slider
                       value={[slippage]}
                       onValueChange={([value]) => setSlippage(value)}
@@ -308,19 +246,22 @@ export default function SwapPage() {
                       step={0.1}
                       className="flex-1"
                     />
-                    <span className="text-sm font-medium w-12 text-right">{slippage}%</span>
+                    <span className="w-14 text-right text-[14px] text-white">{slippage}%</span>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[0.5, 1, 2].map((value) => (
-                    <Button
+                    <button
                       key={value}
-                      variant={slippage === value ? 'default' : 'outline'}
-                      size="sm"
                       onClick={() => setSlippage(value)}
+                      className={`rounded-md border px-3 py-2 text-[13px] font-medium transition-colors ${
+                        slippage === value
+                          ? 'border-[#7FE5E5]/50 bg-[#7FE5E5]/10 text-[#7FE5E5]'
+                          : 'border-white/10 bg-white/[0.02] text-white/60 hover:border-white/30 hover:text-white'
+                      }`}
                     >
                       {value}%
-                    </Button>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -328,287 +269,334 @@ export default function SwapPage() {
           </Dialog>
         </div>
 
-        {/* Chain Toggle */}
-        {chains.length > 0 && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg bg-secondary/50 p-1">
-            {chains.map((chain) => (
-              <button
-                key={chain.id}
-                type="button"
-                onClick={() => setSelectedChain(chain)}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${selectedChain?.id === chain.id
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-                  }`}
-              >
-                <ChainIcon chain={chain} size="sm" />
-                {chain.name}
-              </button>
-            ))}
+        {/* Swap Card with Unichain pink aura behind */}
+        <div className="relative">
+          {/* Pink aura — uses Unichain brand color #FF007A */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10"
+          >
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{
+                width: '130%',
+                height: '120%',
+                background:
+                  'radial-gradient(ellipse at center, rgba(255,0,122,0.45) 0%, rgba(255,0,122,0.18) 35%, transparent 70%)',
+                filter: 'blur(72px)',
+              }}
+            />
           </div>
-        )}
 
-        {/* Swap Card */}
-        <Card className="overflow-hidden">
-          <CardContent className="p-0">
-            {/* From Section */}
-            <div className="border-b border-border p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">From</span>
-                {isConnected && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      Balance: {fromBalance !== null ? fromBalance.toFixed(4) : '--'} {fromToken?.symbol}
-                    </span>
-                    {fromBalance !== null && fromBalance > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-primary"
-                        onClick={() => setFromAmount(String(fromBalance))}
-                      >
-                        MAX
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={fromAmount}
-                  onChange={(e) => setFromAmount(e.target.value)}
-                  className="flex-1 border-0 bg-transparent text-2xl font-medium focus-visible:ring-0 p-0 h-auto"
-                />
-                <TokenSelector
-                  selectedToken={fromToken}
-                  onSelectToken={setFromToken}
-                  excludeToken={toToken}
-                  chain={selectedChain?.id}
-                />
-              </div>
+          {/* Inner card */}
+          <div className="relative rounded-2xl border border-white/10 bg-[#0d0d0d] p-5">
+          {/* Chain row — Unichain active, Base locked */}
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <div
+              className="flex items-center justify-center gap-2 rounded-lg border border-[#7FE5E5]/40 bg-[#7FE5E5]/5 px-3 py-2 text-[12px] text-white"
+              title="Active chain"
+            >
+              <Image
+                src="/crypto/Unichain.png"
+                alt="Unichain"
+                width={14}
+                height={14}
+                className="h-3.5 w-3.5 rounded-full"
+                unoptimized
+              />
+              Unichain
+              <span className="ml-1 text-[9px] uppercase tracking-[0.15em] text-[#7FE5E5]">active</span>
             </div>
-
-            {/* Swap Direction Button */}
-            <div className="relative py-2">
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t border-border" />
-              <div className="relative flex justify-center">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10 rounded-full bg-background"
-                  onClick={handleSwapDirection}
-                >
-                  <ArrowDownUp className="h-4 w-4" />
-                </Button>
-              </div>
+            <div
+              className="flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[12px] text-white/30"
+              title="Base support coming soon"
+            >
+              <Image
+                src="/crypto/Base.png"
+                alt="Base"
+                width={14}
+                height={14}
+                className="h-3.5 w-3.5 rounded-full opacity-50"
+                unoptimized
+              />
+              Base
+              <span className="ml-1 inline-flex items-center gap-1 rounded border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.15em] text-white/40">
+                🔒 Soon
+              </span>
             </div>
+          </div>
 
-            {/* To Section */}
-            <div className="border-b border-border p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">To</span>
-                <div className="flex items-center gap-2">
-                  {(isLoadingQuote || isLoadingPools) && (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                  {quoteData && !quoteData.isExactSimulation && (
-                    <span className="text-xs text-amber-400/80">~Estimated</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex-1 flex items-center gap-2">
-                  <p className="text-2xl font-medium">
-                    {quoteData ? Number(quoteData.amountOut).toFixed(4) : '0.00'}
-                  </p>
-                  {/* JIT Breakdown info button */}
-                  {quoteData?.isExactSimulation && quoteData.apiResult && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className="text-muted-foreground hover:text-foreground transition-colors">
-                          <Info className="h-4 w-4" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-4 text-sm" side="top">
-                        <p className="font-semibold mb-3">Liquidity Breakdown</p>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          This swap was simulated exactly as the smart contract executes it.
-                        </p>
-                        {(() => {
-                          const r = quoteData.apiResult!
-                          const zfo = r.zeroForOne
-                          // For zeroForOne:
-                          //   virtualDelta0 < 0 means pool paid token0 (we got it)
-                          //   virtualDelta1 > 0 means we gave token1 to pool
-                          // What user cares about: how much of output came from JIT?
-                          const virtualOut = zfo
-                            ? BigInt(r.virtualDelta1)  // token1 out from JIT (positive = JIT received = jit gave token1)
-                            : BigInt(r.virtualDelta0)
-                          const totalOut = BigInt(r.totalAmountOut)
-                          const absVirtual = virtualOut < 0n ? -virtualOut : virtualOut
-                          const absTotalOut = totalOut < 0n ? -totalOut : totalOut
-                          const jitPct = absTotalOut > 0n
-                            ? Number((absVirtual * 10000n) / absTotalOut) / 100
-                            : 0
-                          const realPct = Math.max(0, 100 - jitPct)
-                          const sym = toToken?.symbol ?? ''
-                          const dec = toToken?.decimals ?? 18
-                          const jitAmt = formatUnits(absVirtual, dec)
-                          const realAmt = formatUnits(absTotalOut - absVirtual > 0n ? absTotalOut - absVirtual : 0n, dec)
-                          return (
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                  <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-                                  <span className="text-muted-foreground">Virtual JIT Pool</span>
-                                </div>
-                                <span className="font-mono text-blue-400">{Number(jitAmt).toFixed(4)} {sym} ({jitPct.toFixed(1)}%)</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                  <div className="h-2.5 w-2.5 rounded-full bg-pink-500" />
-                                  <span className="text-muted-foreground">Real V4 Liquidity</span>
-                                </div>
-                                <span className="font-mono text-pink-400">{Number(realAmt).toFixed(4)} {sym} ({realPct.toFixed(1)}%)</span>
-                              </div>
-                              <div className="border-t border-border pt-2 flex justify-between items-center">
-                                <span className="text-muted-foreground">Total Out</span>
-                                <span className="font-mono font-semibold">{Number(formatUnits(absTotalOut, dec)).toFixed(4)} {sym}</span>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                      </PopoverContent>
-                    </Popover>
+          {/* You pay */}
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-white/40">
+                You pay
+              </span>
+              {isConnected && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-white/40">
+                    Balance: {fromBalance !== null ? fromBalance.toFixed(4) : '—'} {fromToken?.symbol}
+                  </span>
+                  {fromBalance !== null && fromBalance > 0 && (
+                    <button
+                      onClick={() => setFromAmount(String(fromBalance))}
+                      className="rounded bg-[#7FE5E5]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em] text-[#7FE5E5] transition-colors hover:bg-[#7FE5E5]/20"
+                    >
+                      MAX
+                    </button>
                   )}
                 </div>
-                <TokenSelector
-                  selectedToken={toToken}
-                  onSelectToken={setToToken}
-                  excludeToken={fromToken}
-                  chain={selectedChain?.id}
-                />
-              </div>
-            </div>
-
-            {/* No Liquidity Warning */}
-            {fromToken && toToken && hasValidAmount && !isLoadingPools && !hasLiquidity && (
-              <div className="border-b border-border bg-muted/50 p-4">
-                <div className="flex items-start gap-3">
-                  <Droplets className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium">No liquidity (or Pool) available</p>
-                    <p className="text-xs text-muted-foreground">
-                      There is no Uniswap V4 pool deployed for {fromToken.symbol}/{toToken.symbol} on {selectedChain?.name ?? 'this chain'} yet.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Quote Details */}
-            {quoteData && (
-              <div className="border-b border-border bg-secondary/30 p-4 space-y-3">
-                {/* Exchange Rate */}
-                {exchangeRate && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Rate {quoteData.isExactSimulation ? '' : '(estimated)'}</span>
-                    <span>1 {fromToken?.symbol} = {exchangeRate} {toToken?.symbol}</span>
-                  </div>
-                )}
-
-                {/* Fee */}
-                {matchedPool && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Pool Fee</span>
-                    <span>{(matchedPool.fee / 10000).toFixed(2)}%</span>
-                  </div>
-                )}
-
-                {/* Slippage */}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Max Slippage</span>
-                  <span>{slippage}%</span>
-                </div>
-
-                {/* Exact sim badge */}
-                {quoteData.isExactSimulation && (
-                  <div className="flex items-center gap-1 text-xs text-emerald-400">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    Exact simulation — click ⓘ next to output for JIT breakdown
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Swap Error */}
-            {swapError && (
-              <div className="border-b border-border bg-destructive/10 p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-destructive">
-                      {swapError}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Swap Button */}
-            <div className="p-4">
-              {!isConnected ? (
-                <Button className="w-full" size="lg" onClick={connect}>
-                  Log in
-                </Button>
-              ) : needsChainSwitch ? (
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={handleSwitchChain}
-                  disabled={isSwitchingChain}
-                >
-                  {isSwitchingChain ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Switching...
-                    </>
-                  ) : (
-                    `Switch to ${selectedChain?.name ?? 'correct chain'}`
-                  )}
-                </Button>
-              ) : isSwapBusy ? (
-                <Button className="w-full" size="lg" disabled>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {STEP_LABELS[swapStep] ?? 'Processing...'}
-                </Button>
-              ) : !isValidSwap ? (
-                <Button className="w-full" size="lg" disabled>
-                  {!hasValidAmount
-                    ? 'Enter an amount'
-                    : isLoadingPools || isLoadingQuote
-                      ? 'Fetching quote...'
-                      : !hasLiquidity
-                        ? 'No liquidity'
-                        : 'Swap'}
-                </Button>
-              ) : (
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={handleSwap}
-                >
-                  Swap
-                </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={fromAmount}
+                onChange={(e) => setFromAmount(e.target.value)}
+                className="h-auto flex-1 border-0 bg-transparent p-0 text-[28px] font-medium text-white tabular-nums focus-visible:ring-0"
+              />
+              <TokenSelector
+                selectedToken={fromToken}
+                onSelectToken={setFromToken}
+                excludeToken={toToken}
+                chain={selectedChain?.id}
+              />
+            </div>
+          </div>
+
+          {/* Flip button */}
+          <div className="relative -my-1.5 flex justify-center">
+            <button
+              onClick={handleSwapDirection}
+              className="rounded-lg border border-white/10 bg-[#0d0d0d] p-2 text-white/60 transition-colors hover:border-[#7FE5E5]/40 hover:text-[#7FE5E5]"
+              aria-label="Flip tokens"
+            >
+              <ArrowDownUp className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* You receive */}
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-white/40">
+                You receive
+              </span>
+              <div className="flex items-center gap-1.5">
+                {(isLoadingQuote || isLoadingPools) && (
+                  <Loader2 className="h-3 w-3 animate-spin text-white/40" />
+                )}
+                {quoteData && !quoteData.isExactSimulation && (
+                  <span className="text-[11px] text-amber-300/80">~ Estimated</span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <p className="flex-1 text-[28px] font-medium text-[#7FE5E5] tabular-nums">
+                {quoteData ? Number(quoteData.amountOut).toFixed(4) : '0.00'}
+              </p>
+              {/* JIT Breakdown popover */}
+              {quoteData?.isExactSimulation && quoteData.apiResult && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="text-white/40 transition-colors hover:text-[#7FE5E5]">
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="top"
+                    className="w-72 border-white/10 bg-[#0d0d0d] p-4 text-[13px] text-white"
+                  >
+                    <div className="mb-3 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-white/60">
+                      <DotMarkMini /> Liquidity breakdown
+                    </div>
+                    <p className="mb-3 text-[12px] text-white/50">
+                      Simulated exactly as the smart contract executes it.
+                    </p>
+                    {(() => {
+                      const r = quoteData.apiResult!
+                      const zfo = r.zeroForOne
+                      // For zeroForOne:
+                      //   virtualDelta1 = JIT side delta (we got token1 from JIT)
+                      // What matters: how much of the output came from JIT vs Real V4?
+                      const virtualOut = zfo
+                        ? BigInt(r.virtualDelta1)
+                        : BigInt(r.virtualDelta0)
+                      const totalOut = BigInt(r.totalAmountOut)
+                      const absVirtual = virtualOut < 0n ? -virtualOut : virtualOut
+                      const absTotalOut = totalOut < 0n ? -totalOut : totalOut
+                      const jitPct = absTotalOut > 0n
+                        ? Number((absVirtual * 10000n) / absTotalOut) / 100
+                        : 0
+                      const realPct = Math.max(0, 100 - jitPct)
+                      const sym = toToken?.symbol ?? ''
+                      const dec = toToken?.decimals ?? 18
+                      const jitAmt = formatUnits(absVirtual, dec)
+                      const realAmt = formatUnits(absTotalOut - absVirtual > 0n ? absTotalOut - absVirtual : 0n, dec)
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-[#7FE5E5] shadow-[0_0_6px_#7FE5E5]" />
+                              <span className="text-white/60">Aqua0 JIT pool</span>
+                            </div>
+                            <span className="text-[#7FE5E5]">
+                              {Number(jitAmt).toFixed(4)} {sym} ({jitPct.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-white/60" />
+                              <span className="text-white/60">Real V4 liquidity</span>
+                            </div>
+                            <span className="text-white/70">
+                              {Number(realAmt).toFixed(4)} {sym} ({realPct.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between border-t border-white/10 pt-2">
+                            <span className="text-white/60">Total out</span>
+                            <span className="font-semibold text-white">
+                              {Number(formatUnits(absTotalOut, dec)).toFixed(4)} {sym}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </PopoverContent>
+                </Popover>
+              )}
+              <TokenSelector
+                selectedToken={toToken}
+                onSelectToken={setToToken}
+                excludeToken={fromToken}
+                chain={selectedChain?.id}
+              />
+            </div>
+          </div>
+
+          {/* No liquidity warning */}
+          {fromToken && toToken && hasValidAmount && !isLoadingPools && !hasLiquidity && (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-300/20 bg-amber-300/5 p-3">
+              <Droplets className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <div>
+                <p className="text-[13px] font-medium text-white">No liquidity (or pool) available</p>
+                <p className="text-[11px] text-white/50">
+                  No Uniswap V4 pool deployed for {fromToken.symbol}/{toToken.symbol} on {selectedChain?.name ?? 'this chain'} yet.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Quote details */}
+          {quoteData && (
+            <div className="mt-4 space-y-2 rounded-lg border border-white/[0.06] bg-white/[0.015] p-3 text-[13px]">
+              {exchangeRate && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/50">Rate{quoteData.isExactSimulation ? '' : ' (est.)'}</span>
+                  <span className="text-white/80">
+                    1 {fromToken?.symbol} = {exchangeRate} {toToken?.symbol}
+                  </span>
+                </div>
+              )}
+              {matchedPool && (
+                <div className="flex items-center justify-between">
+                  <span className="text-white/50">Pool fee</span>
+                  <span className="text-white/80">{(matchedPool.fee / 10000).toFixed(2)}%</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-white/50">Max slippage</span>
+                <span className="text-white/80">{slippage}%</span>
+              </div>
+              {quoteData.isExactSimulation && (
+                <div className="flex items-center justify-between border-t border-white/10 pt-2">
+                  <span className="text-white/50">Routed via Aqua0</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7FE5E5]/30 bg-[#7FE5E5]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-[#7FE5E5]">
+                    <span className="h-1 w-1 rounded-full bg-[#7FE5E5] shadow-[0_0_4px_#7FE5E5]" />
+                    JIT live
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Swap error */}
+          {swapError && (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+              <p className="text-[13px] text-red-200">{swapError}</p>
+            </div>
+          )}
+
+          {/* CTA */}
+          <div className="mt-4">
+            {!isConnected ? (
+              <button
+                onClick={connect}
+                className="w-full rounded-lg bg-white px-5 py-3.5 text-[14px] font-semibold text-black transition-colors hover:bg-white/90"
+              >
+                Connect wallet to swap
+              </button>
+            ) : needsChainSwitch ? (
+              <button
+                onClick={handleSwitchChain}
+                disabled={isSwitchingChain}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-5 py-3.5 text-[14px] font-semibold text-black transition-colors hover:bg-white/90 disabled:opacity-60"
+              >
+                {isSwitchingChain ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Switching…
+                  </>
+                ) : (
+                  `Switch to ${selectedChain?.name ?? 'correct chain'}`
+                )}
+              </button>
+            ) : isSwapBusy ? (
+              <button
+                disabled
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-5 py-3.5 text-[14px] font-semibold text-white/60"
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {STEP_LABELS[swapStep] ?? 'Processing…'}
+              </button>
+            ) : !isValidSwap ? (
+              <button
+                disabled
+                className="w-full rounded-lg bg-white/5 px-5 py-3.5 text-[14px] font-semibold text-white/40"
+              >
+                {!hasValidAmount
+                  ? 'Enter an amount'
+                  : isLoadingPools || isLoadingQuote
+                    ? 'Fetching quote…'
+                    : !hasLiquidity
+                      ? 'No liquidity'
+                      : 'Swap'}
+              </button>
+            ) : (
+              <button
+                onClick={handleSwap}
+                className="w-full rounded-lg bg-[#7FE5E5] px-5 py-3.5 text-[14px] font-semibold text-black transition-colors hover:bg-[#5dd4d4]"
+              >
+                Swap
+              </button>
+            )}
+          </div>
+          </div>
+        </div>
       </div>
     </div>
+  )
+}
+
+/* ---------- Little 3x3 dot mark (matches dashboard style) ---------- */
+function DotMarkMini() {
+  return (
+    <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true" className="text-[#7FE5E5]">
+      {[0, 1, 2].map((r) =>
+        [0, 1, 2].map((c) => (
+          <rect key={`${r}-${c}`} x={c * 4 + 1} y={r * 4 + 1} width="2" height="2" fill="currentColor" />
+        ))
+      )}
+    </svg>
   )
 }

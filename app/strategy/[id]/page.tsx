@@ -3,110 +3,55 @@
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Image from 'next/image'
 import { TokenPairIcon } from '@/components/token-icon'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { useMappedStrategy } from '@/hooks/use-mapped-strategies'
-import type { Strategy } from '@/lib/types'
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  TrendingUp,
-  ExternalLink,
-  CheckCircle2,
-} from 'lucide-react'
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
+import { useWallet } from '@/contexts/wallet-context'
 import { AddLiquidityModal } from '@/components/strategies/add-liquidity-modal'
-import Image from 'next/image'
+import { MOCK_STRATEGIES } from '@/lib/mock-demo-data'
+import type { Strategy } from '@/lib/types'
+import { ArrowLeft } from 'lucide-react'
 
-interface StrategyDetail {
-  strategy: Strategy
-  volume24h: number
-  volume7d: number
-  fees24h: number
-  fees7d: number
-  fees30d: number
-  totalFeesCollected: number
-  poolComposition: { tokenA: number; tokenB: number }
-  tokenAAmount: number
-  tokenBAmount: number
-  currentPrice: number
-  minPrice?: number
-  maxPrice?: number
-  inRange?: boolean
-  liquidityActive?: number
-  utilizationRate?: number
-  impermanentLoss?: number
-  distanceFromUpper?: number
-  distanceFromLower?: number
-  tickDistribution?: { price: number; liquidity: number }[]
-  priceHistory?: { date: string; price: number }[]
-  apyHistory: { date: string; apy: number }[]
-  tvlHistory: { date: string; tvl: number }[]
-  volumeHistory: { date: string; volume: number }[]
-  recentActivity: { id: string; type: string; amount: string; price: string; time: string; hash: string }[]
-  userPosition: { hasPosition: boolean; value: number; earnings: number; share: number }
+/* ==========================================================================
+   Strategy Detail — Alpha redesign
+   ==========================================================================
+   SwapVM strategy detail page (constant-product or stable-swap). Uses the
+   existing useMappedStrategy() hook; falls back to a mocked strategy if the
+   id matches one in lib/mock-demo-data.ts (so demo cards on the pools page
+   can navigate to a working detail view).
+
+   AddLiquidityModal integration is left intact.
+   ========================================================================== */
+
+const CHAIN_LOGOS: Record<string, string> = {
+  base: '/crypto/Base.png',
+  unichain: '/crypto/Unichain.png',
+  'unichain-sepolia': '/crypto/Unichain.png',
+  'base-sepolia': '/crypto/Base.png',
 }
 
-const strategyTypeLabels: Record<string, string> = {
-  'constant-product': 'Constant Product',
-  'stable-swap': 'Stable Swap',
-}
-
-const strategyTypeColors: Record<string, string> = {
-  'constant-product': 'bg-violet-500/10 text-violet-400',
-  'stable-swap': 'bg-sky-500/10 text-sky-400',
-}
-
-function formatCurrency(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`
-  return `$${value.toFixed(2)}`
-}
-
-function formatNumber(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`
-  return value.toFixed(2)
+function fmtUSD(n: number): string {
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`
+  return `$${n.toFixed(2)}`
 }
 
 export default function StrategyDetailPage() {
   const params = useParams()
   const router = useRouter()
   const strategyHash = params.id as string
-  const { data: mappedStrategy, raw: apiDetail, isLoading } = useMappedStrategy(strategyHash)
-  const [chartMetric, setChartMetric] = useState<'apy' | 'tvl' | 'volume'>('apy')
+  const { data: mappedStrategy, isLoading } = useMappedStrategy(strategyHash)
+  const { isConnected, connect } = useWallet()
   const [isAddLiquidityOpen, setIsAddLiquidityOpen] = useState(false)
 
-  // Build StrategyDetail from API data with defaults for fields not yet available
-  const data: StrategyDetail | null = mappedStrategy ? {
-    strategy: mappedStrategy,
-    volume24h: apiDetail?.volume24hUsd ?? 0,
-    volume7d: 0,
-    fees24h: 0,
-    fees7d: 0,
-    fees30d: 0,
-    totalFeesCollected: apiDetail?.stats ? parseFloat(apiDetail.stats.totalFees) / 1e18 : 0,
-    poolComposition: { tokenA: 50, tokenB: 50 },
-    tokenAAmount: 0,
-    tokenBAmount: 0,
-    currentPrice: 0,
-    apyHistory: [],
-    tvlHistory: [],
-    volumeHistory: [],
-    recentActivity: [],
-    userPosition: { hasPosition: false, value: 0, earnings: 0, share: 0 },
-  } : null
+  // Mock fallback for demo strategies from the pools page
+  const mockStrategy = MOCK_STRATEGIES.find((s) => s.id === strategyHash)
+  const strategy: Strategy | undefined = mappedStrategy ?? mockStrategy
+  const isMock = !!mockStrategy && !mappedStrategy
 
-  if (isLoading) {
+  if (isLoading && !strategy) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -114,486 +59,409 @@ export default function StrategyDetailPage() {
     )
   }
 
-  if (!data) {
+  if (!strategy) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Strategy not found</p>
-        <Button variant="outline" onClick={() => router.push('/')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Strategies
-        </Button>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+        <DotMarkMini />
+        <p className="text-[15px] font-medium text-white">Strategy not found</p>
+        <button
+          onClick={() => router.push('/')}
+          className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:border-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to pools
+        </button>
       </div>
     )
   }
 
-  const { strategy } = data
-  const isStableSwap = strategy.type === 'stable-swap'
-  const isConstantProduct = strategy.type === 'constant-product'
-
-  // Prepare chart data based on selected metric
-  const getChartData = () => {
-    switch (chartMetric) {
-      case 'apy':
-        return data.apyHistory.map(d => ({ date: d.date, value: d.apy }))
-      case 'tvl':
-        return data.tvlHistory.map(d => ({ date: d.date, value: d.tvl }))
-      case 'volume':
-        return data.volumeHistory.map(d => ({ date: d.date, value: d.volume }))
-    }
-  }
-
-  const chartData = getChartData()
+  const isCP = strategy.type === 'constant-product'
+  const typeLabel = isCP ? 'Constant Product' : 'Stable Swap'
+  const chain = strategy.supportedChains[0]
+  const feePct = strategy.feeTier
+  // Demo-only mock KPIs — replace with real API data when available
+  const vol24h = isMock ? (isCP ? 420_000 : 1_950_000) : 0
+  const fees24h = vol24h * (feePct / 100)
+  const utilization = isMock ? (isCP ? 68 : 92) : 0
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Back button */}
-      <Link 
-        href="/" 
-        className="mb-6 inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Strategies
-      </Link>
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Back link */}
+        <Link
+          href="/"
+          className="mb-8 inline-flex items-center gap-2 text-[12px] uppercase tracking-[0.2em] text-white/50 transition-colors hover:text-white"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to pools
+        </Link>
 
-      {/* Header Section */}
-      <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-4">
-          <TokenPairIcon tokens={strategy.tokenPair} size="lg" />
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold">{strategy.name}</h1>
-              <span className={`px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full ${strategyTypeColors[strategy.type] || 'bg-white/5 text-muted-foreground'}`}>
-                {strategyTypeLabels[strategy.type]}
-              </span>
-              <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-white/5 text-muted-foreground">
-                {strategy.supportedChains[0]?.name}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {strategy.tokenPair[0].symbol}/{strategy.tokenPair[1].symbol} - Fee: {strategy.feeTier}%
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5">
-            <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="text-sm font-bold text-emerald-400">{strategy.apy.toFixed(1)}% APY</span>
-          </div>
-          <Button size="lg" className="gap-2" onClick={() => setIsAddLiquidityOpen(true)}>
-            Deploy Liquidity
-            <ArrowUpRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Key Metrics Row */}
-      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
-        {[
-          { label: 'Total vTVL', value: formatCurrency(strategy.tvl) },
-          { label: '24h Volume', value: formatCurrency(data.volume24h) },
-          { label: '24h Fees', value: formatCurrency(data.fees24h) },
-          { label: 'Fee Tier', value: `${strategy.feeTier}%` },
-          ...(data.userPosition.hasPosition
-            ? [{ label: 'Your Position', value: formatCurrency(data.userPosition.value), color: 'text-emerald-400' }]
-            : []),
-        ].map((metric) => (
-          <div
-            key={metric.label}
-            className="rounded-xl border border-border/50 bg-secondary/20 p-4"
-          >
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{metric.label}</p>
-            <p className={`mt-1.5 text-xl font-bold tabular-nums ${metric.color || ''}`}>{metric.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Main Content - Different layouts per strategy type */}
-      {isStableSwap && (
-        <StableSwapView data={data} chartData={chartData} chartMetric={chartMetric} setChartMetric={setChartMetric} />
-      )}
-      
-      {isConstantProduct && (
-        <ConstantProductView data={data} chartData={chartData} chartMetric={chartMetric} setChartMetric={setChartMetric} />
-      )}
-
-      {/* Add Liquidity Modal */}
-      <AddLiquidityModal
-        open={isAddLiquidityOpen}
-        onOpenChange={setIsAddLiquidityOpen}
-        strategy={strategy}
-        currentPrice={data.currentPrice}
-        minPrice={data.minPrice}
-        maxPrice={data.maxPrice}
-      />
-    </div>
-  )
-}
-
-// Shared Sidebar Stats
-function SidebarStats({ data, showSlippage }: { data: StrategyDetail; showSlippage?: boolean }) {
-  const volumeRows = [
-    { label: showSlippage ? '24h Swaps' : '24h Volume', value: formatCurrency(data.volume24h) },
-    { label: '7d Volume', value: formatCurrency(data.volume7d) },
-    ...(showSlippage
-      ? [{ label: 'Avg Slippage', value: '0.01%', color: 'text-emerald-400' }]
-      : [{ label: 'Vol/TVL Ratio', value: `${((data.volume24h / data.strategy.tvl) * 100).toFixed(2)}%` }]),
-  ]
-  const feeRows = [
-    { label: '24h Fees', value: formatCurrency(data.fees24h) },
-    { label: '7d Fees', value: formatCurrency(data.fees7d) },
-    { label: '30d Fees', value: formatCurrency(data.fees30d) },
-  ]
-
-  return (
-    <>
-      <div className="rounded-xl border border-border/50 bg-secondary/20 p-5">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-4">{showSlippage ? 'Swap Statistics' : 'Volume Statistics'}</p>
-        <div className="space-y-3">
-          {volumeRows.map((r) => (
-            <div key={r.label} className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{r.label}</span>
-              <span className={`font-semibold tabular-nums ${r.color || ''}`}>{r.value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border/50 bg-secondary/20 p-5">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-4">Fee Statistics</p>
-        <div className="space-y-3">
-          {feeRows.map((r) => (
-            <div key={r.label} className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{r.label}</span>
-              <span className="font-semibold tabular-nums">{r.value}</span>
-            </div>
-          ))}
-          <div className="border-t border-border/50 pt-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total Collected</span>
-              <span className="font-bold tabular-nums text-emerald-400">{formatCurrency(data.totalFeesCollected)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
-// Shared Pool Balance Component
-function PoolBalance({ data, strategy, showUsdValues }: { data: StrategyDetail; strategy: Strategy; showUsdValues?: (symbol: string, amount: number) => string }) {
-  return (
-    <div className="rounded-xl border border-border/50 bg-secondary/20 p-5">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-4">Pool Reserves</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg bg-white/[0.03] p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold">{strategy.tokenPair[0].symbol}</span>
-            <span className="text-xs text-muted-foreground">{data.poolComposition.tokenA}%</span>
-          </div>
-          <p className="text-xl font-bold tabular-nums">{formatNumber(data.tokenAAmount)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {showUsdValues ? showUsdValues(strategy.tokenPair[0].symbol, data.tokenAAmount) : formatCurrency(data.tokenAAmount)}
-          </p>
-        </div>
-        <div className="rounded-lg bg-white/[0.03] p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold">{strategy.tokenPair[1].symbol}</span>
-            <span className="text-xs text-muted-foreground">{data.poolComposition.tokenB}%</span>
-          </div>
-          <p className="text-xl font-bold tabular-nums">{formatNumber(data.tokenBAmount)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {showUsdValues ? showUsdValues(strategy.tokenPair[1].symbol, data.tokenBAmount) : formatCurrency(data.tokenBAmount)}
-          </p>
-        </div>
-      </div>
-      {/* Balance Bar */}
-      <div className="mt-4 flex h-2 w-full overflow-hidden rounded-full bg-white/[0.03]">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: `${data.poolComposition.tokenA}%`,
-            background: 'linear-gradient(90deg, #10b981, #10b981cc)',
-            boxShadow: '0 0 8px #10b98144',
-          }}
-        />
-      </div>
-      <p className="mt-2 text-center text-xs text-muted-foreground">
-        Pool is {Math.abs(data.poolComposition.tokenA - 50) < 2 ? 'well balanced' : 'slightly imbalanced'}
-      </p>
-    </div>
-  )
-}
-
-// Stable Swap View
-function StableSwapView({
-  data,
-  chartData,
-  chartMetric,
-  setChartMetric
-}: {
-  data: StrategyDetail
-  chartData: { date: string; value: number }[]
-  chartMetric: 'apy' | 'tvl' | 'volume'
-  setChartMetric: (m: 'apy' | 'tvl' | 'volume') => void
-}) {
-  const { strategy } = data
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      {/* Left Column */}
-      <div className="space-y-4 lg:col-span-2">
-        {/* Peg Status */}
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Peg Status</p>
-            <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5">
-              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-              <span className="text-xs font-semibold text-emerald-400">Stable</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-lg bg-white/[0.03] p-4 text-center">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Rate</p>
-              <p className="mt-2 text-3xl font-bold tabular-nums">{data.currentPrice.toFixed(4)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                1 {strategy.tokenPair[0].symbol} = {data.currentPrice.toFixed(4)} {strategy.tokenPair[1].symbol}
-              </p>
-            </div>
-            <div className="rounded-lg bg-white/[0.03] p-4 text-center">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Deviation from Peg</p>
-              <p className="mt-2 text-3xl font-bold tabular-nums text-emerald-400">
-                {((data.currentPrice - 1) * 100).toFixed(3)}%
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">Target: 1.0000</p>
-            </div>
-          </div>
-        </div>
-
-        <PoolBalance data={data} strategy={strategy} />
-
-        <PerformanceChart
-          chartData={chartData}
-          chartMetric={chartMetric}
-          setChartMetric={setChartMetric}
-        />
-      </div>
-
-      {/* Right Column */}
-      <div className="space-y-4">
-        <SidebarStats data={data} showSlippage />
-        <RecentActivityCard activities={data.recentActivity} />
-      </div>
-    </div>
-  )
-}
-
-// Constant Product View
-function ConstantProductView({
-  data,
-  chartData,
-  chartMetric,
-  setChartMetric
-}: {
-  data: StrategyDetail
-  chartData: { date: string; value: number }[]
-  chartMetric: 'apy' | 'tvl' | 'volume'
-  setChartMetric: (m: 'apy' | 'tvl' | 'volume') => void
-}) {
-  const { strategy } = data
-  const getUsdValue = (symbol: string, amount: number) => {
-    const prices: Record<string, number> = { WBTC: 42000, ETH: 2000, USDC: 1, USDT: 1, DAI: 1 }
-    return formatCurrency(amount * (prices[symbol] || 1))
-  }
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      {/* Left Column */}
-      <div className="space-y-4 lg:col-span-2">
-        {/* AMM State */}
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-5">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-4">AMM State</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-lg bg-white/[0.03] p-4 text-center">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Price</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{formatCurrency(data.currentPrice)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                1 {strategy.tokenPair[0].symbol} = {data.currentPrice.toFixed(2)} {strategy.tokenPair[1].symbol}
-              </p>
-            </div>
-            <div className="rounded-lg bg-white/[0.03] p-4 text-center">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Constant K</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{formatNumber(data.tokenAAmount * data.tokenBAmount)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">x * y = k</p>
-            </div>
-            <div className="rounded-lg bg-white/[0.03] p-4 text-center">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Price Impact (1%)</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">0.5%</p>
-              <p className="mt-1 text-xs text-muted-foreground">Est. slippage</p>
-            </div>
-          </div>
-        </div>
-
-        <PoolBalance data={data} strategy={strategy} showUsdValues={getUsdValue} />
-
-        <PerformanceChart
-          chartData={chartData}
-          chartMetric={chartMetric}
-          setChartMetric={setChartMetric}
-        />
-      </div>
-
-      {/* Right Column */}
-      <div className="space-y-4">
-        <SidebarStats data={data} />
-        <RecentActivityCard activities={data.recentActivity} />
-      </div>
-    </div>
-  )
-}
-
-// Shared Performance Chart Component
-function PerformanceChart({
-  chartData,
-  chartMetric,
-  setChartMetric
-}: {
-  chartData: { date: string; value: number }[]
-  chartMetric: 'apy' | 'tvl' | 'volume'
-  setChartMetric: (m: 'apy' | 'tvl' | 'volume') => void
-}) {
-  return (
-    <div className="rounded-xl border border-border/50 bg-secondary/20 overflow-hidden">
-      <div className="flex items-center justify-between p-5 pb-2">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Performance</p>
-        <Tabs value={chartMetric} onValueChange={(v) => setChartMetric(v as typeof chartMetric)}>
-          <TabsList className="h-7 bg-white/[0.03]">
-            <TabsTrigger value="apy" className="text-[10px] uppercase tracking-wider h-5 px-2.5">APY</TabsTrigger>
-            <TabsTrigger value="tvl" className="text-[10px] uppercase tracking-wider h-5 px-2.5">TVL</TabsTrigger>
-            <TabsTrigger value="volume" className="text-[10px] uppercase tracking-wider h-5 px-2.5">Volume</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="px-2 pb-4">
-        <div className="h-[240px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="perfGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
-                  <stop offset="50%" stopColor="#10b981" stopOpacity={0.12} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="perfLine" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#10b981" />
-                  <stop offset="100%" stopColor="#34d399" />
-                </linearGradient>
-                <filter id="perfGlow">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                  <feMerge>
-                    <feMergeNode in="coloredBlur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <XAxis
-                dataKey="date"
-                stroke="#6b7280"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                dy={8}
-              />
-              <YAxis
-                stroke="#6b7280"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(v) => chartMetric === 'apy' ? `${v}%` : formatNumber(v)}
-                width={52}
-              />
-              <Tooltip
-                content={({ active, payload, label }) => {
-                  if (!active || !payload?.length) return null
-                  const v = payload[0].value as number
-                  return (
-                    <div className="rounded-xl border border-white/10 bg-black/80 px-4 py-3 shadow-2xl backdrop-blur-md">
-                      <p className="text-xs text-muted-foreground mb-1">{label}</p>
-                      <p className="text-lg font-bold text-emerald-400">
-                        {chartMetric === 'apy' ? `${v.toFixed(1)}%` : formatCurrency(v)}
-                      </p>
-                      <p className="text-xs text-emerald-500/60">{chartMetric.toUpperCase()}</p>
-                    </div>
-                  )
-                }}
-                cursor={{ stroke: '#10b98133', strokeWidth: 1, strokeDasharray: '4 4' }}
-              />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="url(#perfLine)"
-                strokeWidth={2.5}
-                fill="url(#perfGradient)"
-                filter="url(#perfGlow)"
-                dot={false}
-                activeDot={{ r: 6, fill: '#10b981', stroke: '#10b98140', strokeWidth: 8 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Shared Recent Activity Component
-function RecentActivityCard({ activities }: { activities: { id: string; type: string; amount: string; price: string; time: string; hash: string }[] }) {
-  const getActivityIcon = (type: string) => {
-    const iconMap: Record<string, string> = {
-      swap: '/icons/Swap.png',
-      add: '/icons/Deposit.png',
-      remove: '/icons/Withdraw.png',
-    }
-    const iconPath = iconMap[type] || '/icons/Swap.png'
-    return (
-      <Image
-        src={iconPath}
-        alt={type}
-        width={20}
-        height={20}
-        className="h-5 w-5"
-        unoptimized
-      />
-    )
-  }
-
-  return (
-    <div className="rounded-xl border border-border/50 bg-secondary/20 p-5">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-4">Recent Activity</p>
-      <div className="space-y-3">
-        {activities.slice(0, 5).map((activity) => (
-          <div key={activity.id} className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              {getActivityIcon(activity.type)}
-              <div>
-                <p className="font-medium capitalize">{activity.type}</p>
-                <p className="text-xs text-muted-foreground">{activity.time}</p>
+        {/* Hero */}
+        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-center gap-5">
+            <TokenPairIcon tokens={strategy.tokenPair} size="lg" />
+            <div>
+              <h1 className="mb-2 text-[clamp(28px,3.5vw,40px)] font-bold leading-none tracking-[-0.025em] text-white">
+                {strategy.tokenPair[0].symbol} / {strategy.tokenPair[1].symbol}
+              </h1>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                <Badge label={typeLabel} tone="violet" />
+                <Badge label="SwapVM · Aqua0" tone="aqua" pulse />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-white/50">
+                <span>Fee {feePct}%</span>
+                <span className="text-white/20">·</span>
+                <span className="capitalize">Risk {strategy.riskLevel}</span>
+                {chain && (
+                  <>
+                    <span className="text-white/20">·</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] text-white/70">
+                      <Image
+                        src={CHAIN_LOGOS[chain.id] ?? chain.logo}
+                        alt={chain.name}
+                        width={12}
+                        height={12}
+                        className="h-3 w-3 rounded-full"
+                        unoptimized
+                      />
+                      {chain.name}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
-            <div className="text-right">
-              <p className="font-medium tabular-nums">{activity.amount}</p>
-              <a
-                href={`https://etherscan.io/tx/${activity.hash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-xs text-muted-foreground hover:text-emerald-400 transition-colors"
-              >
-                {activity.hash.slice(0, 8)}...
-                <ExternalLink className="ml-1 h-3 w-3" />
-              </a>
-            </div>
           </div>
-        ))}
+
+          <div className="flex flex-col items-start gap-2 lg:items-end">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7FE5E5]/30 bg-[#7FE5E5]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[#7FE5E5]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#7FE5E5] shadow-[0_0_6px_#7FE5E5]" />
+              SwapVM Active
+            </span>
+            {!isConnected ? (
+              <button
+                onClick={connect}
+                className="rounded-lg bg-white px-5 py-2.5 text-[13px] font-semibold text-black transition-colors hover:bg-white/90"
+              >
+                Connect to LP
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAddLiquidityOpen(true)}
+                className="rounded-lg bg-[#7FE5E5] px-5 py-2.5 text-[13px] font-semibold text-black transition-colors hover:bg-[#5dd4d4]"
+              >
+                Provide liquidity
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 4 KPIs */}
+        <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Kpi
+            label="APY"
+            value={`${strategy.apy.toFixed(2)}%`}
+            sub="trailing 7d"
+            accent
+          />
+          <Kpi
+            label="vTVL"
+            value={fmtUSD(strategy.tvl)}
+            sub="virtual TVL"
+          />
+          <Kpi
+            label="24h volume"
+            value={isMock ? fmtUSD(vol24h) : '—'}
+            sub={isMock ? `${fmtUSD(fees24h)} in fees` : 'Live data soon'}
+          />
+          <Kpi
+            label="Utilization"
+            value={isMock ? `${utilization}%` : '—'}
+            sub={isMock ? 'of shared capital' : 'Live data soon'}
+          />
+        </div>
+
+        <div className="grid gap-5">
+          {/* AMM curve visualization */}
+          <div>
+            <Panel>
+              <PanelHeader
+                title={isCP ? 'Constant-product curve  ·  x · y = k' : 'Stable-swap curve  ·  flat near peg'}
+                sub={
+                  isCP
+                    ? 'Classic AMM pricing — reserves multiplied stay constant. Price moves with depth.'
+                    : 'Flattened curve near 1:1 parity. Low slippage between pegged assets.'
+                }
+              />
+              <CurveViz type={strategy.type} />
+              <div className="mt-4 grid gap-2 text-[12px] sm:grid-cols-2">
+                {isCP ? (
+                  <>
+                    <Explain
+                      title="Best for"
+                      body="Volatile pairs with meaningful price discovery (ETH/USDC, WBTC/USDC)."
+                    />
+                    <Explain
+                      title="Downside"
+                      body="~70% of capital sits idle when price moves far from the peg."
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Explain
+                      title="Best for"
+                      body="Pegged pairs that should trade near 1:1 (USDC/DAI, USDT/USDC, stETH/ETH)."
+                    />
+                    <Explain
+                      title="Downside"
+                      body="Amplification breaks if the peg depegs — significant IL in crisis scenarios."
+                    />
+                  </>
+                )}
+              </div>
+            </Panel>
+          </div>
+
+        </div>
+
+        {isAddLiquidityOpen && (
+          <AddLiquidityModal
+            open={isAddLiquidityOpen}
+            onOpenChange={setIsAddLiquidityOpen}
+            strategy={strategy}
+            currentPrice={
+              // Mock price ratio: priceA / priceB from the modal's internal map
+              isCP ? 2000 : 1 // mWETH ≈ $2000, stables ≈ $1
+            }
+          />
+        )}
       </div>
+    </div>
+  )
+}
+
+/* ==========================================================================
+   Primitives
+   ========================================================================== */
+
+function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#0d0d0d] p-5">
+      {children}
+    </div>
+  )
+}
+
+function PanelHeader({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div className="mb-4">
+      <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-white">{title}</h3>
+      {sub && <p className="mt-1 text-[12px] text-white/50">{sub}</p>}
+    </div>
+  )
+}
+
+function Kpi({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string
+  value: string
+  sub?: string
+  accent?: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#0d0d0d] p-4">
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/50">{label}</p>
+      <p
+        className={`mt-2 text-[22px] font-bold leading-none tracking-[-0.02em] tabular-nums ${
+          accent ? 'text-[#7FE5E5]' : 'text-white'
+        }`}
+      >
+        {value}
+      </p>
+      {sub && <p className="mt-1.5 text-[11px] text-white/40">{sub}</p>}
+    </div>
+  )
+}
+
+function Badge({
+  label,
+  tone,
+  pulse,
+}: {
+  label: string
+  tone: 'aqua' | 'violet'
+  pulse?: boolean
+}) {
+  const styles = {
+    aqua: 'border-[#7FE5E5]/30 bg-[#7FE5E5]/10 text-[#7FE5E5]',
+    violet: 'border-violet-300/30 bg-violet-300/10 text-violet-200',
+  }[tone]
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${styles}`}
+    >
+      {pulse && (
+        <span className="h-1 w-1 rounded-full bg-current shadow-[0_0_4px_currentColor]" />
+      )}
+      {label}
+    </span>
+  )
+}
+
+function Explain({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.015] p-3">
+      <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-white/40">
+        {title}
+      </p>
+      <p className="mt-1 text-[12px] leading-[1.5] text-white/70">{body}</p>
+    </div>
+  )
+}
+
+function DotMarkMini() {
+  return (
+    <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true" className="text-[#7FE5E5]">
+      {[0, 1, 2].map((r) =>
+        [0, 1, 2].map((c) => (
+          <rect key={`${r}-${c}`} x={c * 4 + 1} y={r * 4 + 1} width="2" height="2" fill="currentColor" />
+        )),
+      )}
+    </svg>
+  )
+}
+
+/* ==========================================================================
+   AMM curve visualization — SVG render of x*y=k (CP) or flattened SS
+   ========================================================================== */
+
+function CurveViz({ type }: { type: string }) {
+  const width = 560
+  const height = 200
+  const pad = 30
+  const W = width - pad * 2
+  const H = height - pad * 2
+
+  // Generate points across the curve
+  const points: Array<[number, number]> = []
+  const N = 100
+
+  if (type === 'constant-product') {
+    // x*y = k, with k = 1. Map (x, 1/x) to chart space for x in [0.2, 5]
+    const xMin = 0.2
+    const xMax = 5
+    for (let i = 0; i <= N; i++) {
+      const x = xMin + (xMax - xMin) * (i / N)
+      const y = 1 / x
+      // Scale to fit
+      const px = pad + ((x - xMin) / (xMax - xMin)) * W
+      const yNorm = Math.min(1, y / 5)
+      const py = pad + H - yNorm * H
+      points.push([px, py])
+    }
+  } else {
+    // Stable-swap: flatter curve using a smoothed hyperbola (StableSwap invariant)
+    // Use an approximation: A*(x+y) + x*y = A*D + (D/2)^2, with A high → near x+y=const
+    // For viz: y = f(x) where curve is flat near center, steep at edges
+    const xMin = 0.2
+    const xMax = 2
+    for (let i = 0; i <= N; i++) {
+      const x = xMin + (xMax - xMin) * (i / N)
+      // Smooth-step style: flat in middle, steep at edges
+      const centered = x - 1
+      let y
+      if (Math.abs(centered) < 0.25) {
+        y = 1 - centered * 0.1 // very flat
+      } else {
+        const extra = Math.abs(centered) - 0.25
+        y = 1 - Math.sign(centered) * (0.025 + extra * extra * 3)
+      }
+      y = Math.max(0.2, Math.min(2, y))
+      const px = pad + ((x - xMin) / (xMax - xMin)) * W
+      const yNorm = (y - 0.2) / 1.8
+      const py = pad + H - yNorm * H
+      points.push([px, py])
+    }
+  }
+
+  const pathD = points
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`)
+    .join(' ')
+
+  // Center point (representing equilibrium)
+  const centerIdx = Math.floor(N / 2)
+  const [cx, cy] = points[centerIdx]
+
+  return (
+    <div className="relative w-full">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+        className="w-full"
+        style={{ height: 200 }}
+      >
+        {/* Grid lines */}
+        {[0.25, 0.5, 0.75].map((t) => (
+          <line
+            key={`h${t}`}
+            x1={pad}
+            y1={pad + H * t}
+            x2={pad + W}
+            y2={pad + H * t}
+            stroke="currentColor"
+            strokeOpacity="0.05"
+            className="text-white"
+          />
+        ))}
+        {[0.25, 0.5, 0.75].map((t) => (
+          <line
+            key={`v${t}`}
+            x1={pad + W * t}
+            y1={pad}
+            x2={pad + W * t}
+            y2={pad + H}
+            stroke="currentColor"
+            strokeOpacity="0.05"
+            className="text-white"
+          />
+        ))}
+
+        {/* Axes */}
+        <line x1={pad} y1={pad + H} x2={pad + W} y2={pad + H} stroke="currentColor" strokeOpacity="0.15" className="text-white" />
+        <line x1={pad} y1={pad} x2={pad} y2={pad + H} stroke="currentColor" strokeOpacity="0.15" className="text-white" />
+
+        {/* Curve — render as a dotted polyline so it reads as pointillism */}
+        <path d={pathD} fill="none" stroke="#7FE5E5" strokeOpacity="0.15" strokeWidth="1.5" />
+        {points.filter((_, i) => i % 2 === 0).map((p, i) => (
+          <rect
+            key={i}
+            x={p[0] - 1.25}
+            y={p[1] - 1.25}
+            width="2.5"
+            height="2.5"
+            fill="#7FE5E5"
+            opacity={0.5 + Math.sin(i / 5) * 0.3}
+          />
+        ))}
+
+        {/* Equilibrium dot */}
+        <circle cx={cx} cy={cy} r="5" fill="#7FE5E5" opacity="0.2" />
+        <circle cx={cx} cy={cy} r="3" fill="#7FE5E5" />
+
+        {/* Axis labels */}
+        <text x={pad} y={height - 8} fontSize="10" fill="currentColor" opacity="0.4" className="text-white">
+          reserve x
+        </text>
+        <text x={pad + W - 52} y={pad - 10} fontSize="10" fill="currentColor" opacity="0.4" className="text-white" textAnchor="start">
+          reserve y
+        </text>
+        <text x={cx + 10} y={cy - 6} fontSize="10" fill="#7FE5E5">
+          equilibrium
+        </text>
+      </svg>
     </div>
   )
 }

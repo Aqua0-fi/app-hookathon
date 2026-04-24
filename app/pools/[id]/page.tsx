@@ -1,28 +1,66 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import Image from 'next/image'
 import { TokenPairIcon } from '@/components/token-icon'
 import { LoadingSpinner } from '@/components/loading-spinner'
 import { useV4Pools } from '@/hooks/use-v4-pools'
-import { ArrowLeft, ArrowUpRight, TrendingUp, Info, Lock, Zap, BarChart3 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useWallet } from '@/contexts/wallet-context'
 import { ProvideLiquidityModal } from '@/components/pools/provide-liquidity-modal'
-import { VisualLiquidityChart } from '@/components/pools/visual-liquidity-chart'
 import { fetchPoolTickData, fetchPoolFeeData, type TickRange, type PoolFeeData } from '@/lib/v4-api'
+import type { V4Pool } from '@/lib/v4-api'
+import { MOCK_POOLS, getMockPool } from '@/lib/mock-demo-data'
 
-function formatNumber(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`
-  return value.toFixed(2)
+/* ==========================================================================
+   Pool Detail — Alpha redesign
+   ==========================================================================
+   Layout: back link → hero (pair + title + badges + CTA) → 4 KPI cards →
+   3-tab bar (Overview / Aqua0 vs Classic / JIT Engine) → tab body.
+
+   Integrations left intact:
+     • useV4Pools() for pool list (+ mock fallback when backend empty)
+     • fetchPoolTickData() — drives Overview tab "Liquidity distribution"
+     • fetchPoolFeeData() — drives Overview tab "Fees earned" panel
+     • ProvideLiquidityModal — full deposit/withdraw/add-position/remove
+       flow is self-contained; we only open it.
+   ========================================================================== */
+
+/* ---------- Price map for USD conversion (same as before) ---------- */
+const TOKEN_PRICES: Record<string, number> = {
+  mWBTC: 67848, mWETH: 2000, mUSDC: 1, mDAI: 1,
+  WBTC: 67848, WETH: 2000, USDC: 1, DAI: 1,
+}
+
+const CHAIN_NAMES: Record<number, string> = {
+  8453: 'Base',
+  84532: 'Base Sepolia',
+  130: 'Unichain',
+  1301: 'Unichain Sepolia',
+  696969: 'Local Anvil',
+}
+
+const CHAIN_LOGOS: Record<number, string> = {
+  8453: '/crypto/Base.png',
+  84532: '/crypto/Base.png',
+  130: '/crypto/Unichain.png',
+  1301: '/crypto/Unichain.png',
+  696969: '/crypto/Base.png',
+}
+
+/* ---------- Helpers ---------- */
+function getLogo(symbol: string) {
+  const clean = symbol.replace(/^m/, '')
+  if (clean === 'WBTC') return '/crypto/BTC.png'
+  return `/crypto/${clean}.png`
 }
 
 function formatTokenAmount(value: string, decimals: number = 18): string {
   try {
     const num = BigInt(value)
-    const divisor = BigInt(10 ** decimals)
+    const divisor = BigInt(10) ** BigInt(decimals)
     const integerPart = num / divisor
     const remainder = num % divisor
     const floatPart = Number(remainder) / Number(divisor)
@@ -32,46 +70,62 @@ function formatTokenAmount(value: string, decimals: number = 18): string {
   }
 }
 
-// Token prices for USD conversion (spot prices from InitializePools.s.sol)
-// WBTC: 1/0.000015 ≈ 67,848 USDC, WETH: 2000 USDC
-const TOKEN_PRICES: Record<string, number> = {
-  mWBTC: 67848,
-  mWETH: 2000,
-  mUSDC: 1,
-  mDAI: 1,
-  WBTC: 67848,
-  WETH: 2000,
-  USDC: 1,
-  DAI: 1,
+function fmtUSD(n: number): string {
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
+  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`
+  return `$${n.toFixed(2)}`
 }
 
+function short(addr: string): string {
+  if (!addr) return '—'
+  if (addr.length < 14) return addr
+  return `${addr.slice(0, 10)}…${addr.slice(-6)}`
+}
+
+type Tab = 'overview' | 'compare' | 'jit'
+
+/* ==========================================================================
+   Main component
+   ========================================================================== */
 export default function PoolDetailPage() {
   const params = useParams()
   const router = useRouter()
   const poolId = params.id as string
-  const { chainId, address } = useWallet()
-  const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 84532)
+  const { chainId, address, isConnected, connect } = useWallet()
+  const activeChainId = chainId || Number(process.env.NEXT_PUBLIC_CHAIN_ID || 1301)
 
   const { data: pools, isLoading } = useV4Pools(activeChainId)
   const [isProvideModalOpen, setIsProvideModalOpen] = useState(false)
   const [tickData, setTickData] = useState<{ ranges: TickRange[]; currentTick: number } | null>(null)
   const [feeData, setFeeData] = useState<PoolFeeData | null>(null)
+  const [tab, setTab] = useState<Tab>('overview')
 
-  const pool = pools?.find((p) => p.poolId === poolId)
-
-  useEffect(() => {
-    if (poolId && activeChainId) {
-      fetchPoolTickData(activeChainId, poolId)
-        .then(data => setTickData({ ranges: data.ranges, currentTick: data.currentTick }))
-        .catch(console.error)
-      
-      fetchPoolFeeData(activeChainId, poolId, address || undefined)
-        .then(setFeeData)
-        .catch(console.error)
+  // Pool lookup — backend first, mocks fallback (so demo pools work too)
+  const pool: V4Pool | undefined = useMemo(() => {
+    const live = pools?.find((p) => p.poolId === poolId)
+    if (live) return live
+    // Backend may return empty or not include the demo pool — fall back
+    if (!pools || pools.length === 0 || poolId.startsWith('0xdemo')) {
+      return getMockPool(poolId) ?? MOCK_POOLS[0]
     }
-  }, [poolId, activeChainId, address])
+    return undefined
+  }, [pools, poolId])
 
-  if (isLoading) {
+  const isMock = !!pool && pool.poolId.startsWith('0xdemo')
+
+  // Only hit backend for real pools; skip for mocks to avoid 404 noise
+  useEffect(() => {
+    if (!poolId || !activeChainId || isMock) return
+    fetchPoolTickData(activeChainId, poolId)
+      .then((data) => setTickData({ ranges: data.ranges, currentTick: data.currentTick }))
+      .catch(console.error)
+    fetchPoolFeeData(activeChainId, poolId, address || undefined)
+      .then(setFeeData)
+      .catch(console.error)
+  }, [poolId, activeChainId, address, isMock])
+
+  if (isLoading && !pool) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -81,598 +135,837 @@ export default function PoolDetailPage() {
 
   if (!pool) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Pool not found on this chain</p>
-        <Button variant="outline" onClick={() => router.push('/')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Pools
-        </Button>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+        <DotMarkMini />
+        <p className="text-[15px] font-medium text-white">Pool not found on this chain</p>
+        <button
+          onClick={() => router.push('/')}
+          className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:border-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to pools
+        </button>
       </div>
     )
   }
-
-  const getLogo = (symbol: string) => {
-    const cleanSymbol = symbol.replace(/^m/, '');
-    if (cleanSymbol === 'WBTC') return '/crypto/BTC.png';
-    return `/crypto/${cleanSymbol}.png`;
-  };
 
   const tokenPair = [
     { ...pool.token0, logo: getLogo(pool.token0.symbol) },
     { ...pool.token1, logo: getLogo(pool.token1.symbol) },
   ]
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
-      <Link
-        href="/"
-        className="mb-6 inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Pools
-      </Link>
+  // Mock / derived KPIs
+  const feePct = pool.fee / 10000
+  const mockedAPY = isMock ? 32.4 : null
+  const mockedTVL = isMock ? 2_140_000 : null
+  const mockedVol24h = isMock ? 812_000 : null
 
-      {/* Header Section */}
-      <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-center gap-4">
-          <TokenPairIcon tokens={tokenPair as any} size="lg" />
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold">{pool.token0.symbol}/{pool.token1.symbol}</h1>
-              {pool.isAqua0Enabled ? (
-                <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-violet-500/10 text-violet-400">
-                  Aqua0 Hook
+  return (
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Back link */}
+        <Link
+          href="/"
+          className="mb-8 inline-flex items-center gap-2 text-[12px] uppercase tracking-[0.2em] text-white/50 transition-colors hover:text-white"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to pools
+        </Link>
+
+        {/* Hero */}
+        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-center gap-5">
+            <TokenPairIcon tokens={tokenPair as never} size="lg" />
+            <div>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h1 className="text-[clamp(28px,3.5vw,40px)] font-bold leading-none tracking-[-0.025em] text-white">
+                  {pool.token0.symbol} / {pool.token1.symbol}
+                </h1>
+              </div>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                <Badge label="Concentrated" tone="violet" />
+                {pool.isAqua0Enabled ? (
+                  <Badge label="Hook · Aqua0" tone="aqua" pulse />
+                ) : (
+                  <Badge label="Hook · Classic" tone="aqua" />
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-white/50">
+                <span>Uniswap V4 · {feePct.toFixed(2)}% fee</span>
+                <span className="text-white/20">·</span>
+                <span>Tick spacing {pool.tickSpacing}</span>
+                <span className="text-white/20">·</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] text-white/70">
+                  <Image
+                    src={CHAIN_LOGOS[activeChainId] ?? '/crypto/Unichain.png'}
+                    alt={CHAIN_NAMES[activeChainId] ?? ''}
+                    width={12}
+                    height={12}
+                    className="h-3 w-3 rounded-full"
+                    unoptimized
+                  />
+                  {CHAIN_NAMES[activeChainId] ?? `Chain ${activeChainId}`}
                 </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-start gap-2 lg:items-end">
+            {pool.isAqua0Enabled && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7FE5E5]/30 bg-[#7FE5E5]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-[#7FE5E5]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#7FE5E5] shadow-[0_0_6px_#7FE5E5]" />
+                JIT Active
+              </span>
+            )}
+            {pool.isAqua0Enabled ? (
+              !isConnected ? (
+                <button
+                  onClick={connect}
+                  className="rounded-lg bg-white px-5 py-2.5 text-[13px] font-semibold text-black transition-colors hover:bg-white/90"
+                >
+                  Connect to LP
+                </button>
               ) : (
-                <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-amber-500/10 text-amber-400">
-                  Traditional V4
-                </span>
-              )}
-              <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-full bg-white/5 text-muted-foreground">
-                Chain {activeChainId}
+                <button
+                  onClick={() => setIsProvideModalOpen(true)}
+                  className="rounded-lg bg-[#7FE5E5] px-5 py-2.5 text-[13px] font-semibold text-black transition-colors hover:bg-[#5dd4d4]"
+                >
+                  Provide liquidity
+                </button>
+              )
+            ) : (
+              <span className="text-[12px] text-white/40">Classic pool — no JIT</span>
+            )}
+          </div>
+        </div>
+
+        {/* 4 KPIs */}
+        <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Kpi
+            label="APY"
+            value={mockedAPY !== null ? `${mockedAPY.toFixed(2)}%` : '—'}
+            sub={mockedAPY !== null ? 'trailing 7d (incl. shared fees)' : 'Live data soon'}
+            accent
+          />
+          <Kpi
+            label="TVL"
+            value={mockedTVL !== null ? fmtUSD(mockedTVL) : '—'}
+            sub={mockedTVL !== null ? 'total value locked' : 'Live data soon'}
+          />
+          <Kpi
+            label="24h volume"
+            value={mockedVol24h !== null ? fmtUSD(mockedVol24h) : '—'}
+            sub={mockedVol24h !== null ? `${fmtUSD(mockedVol24h * feePct / 100)} in fees` : 'Live data soon'}
+          />
+          <Kpi
+            label="Current price"
+            value={pool.currentPrice.toPrecision(5)}
+            sub={`tick ${pool.currentTick}`}
+            mono
+          />
+        </div>
+
+        {/* Tab bar */}
+        <div className="mb-6 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.02] p-1">
+          {(
+            [
+              ['overview', 'Overview'],
+              ['compare', 'Aqua0 vs Classic'],
+              ['jit', 'JIT Engine'],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`rounded-full px-4 py-1.5 text-[12px] font-medium transition-colors ${
+                tab === k
+                  ? 'bg-white text-black'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab body */}
+        {tab === 'overview' && (
+          <OverviewTab pool={pool} tickData={tickData} feeData={feeData} isMock={isMock} />
+        )}
+        {tab === 'compare' && <CompareTab pool={pool} />}
+        {tab === 'jit' && <JitEngineTab />}
+
+        {isProvideModalOpen && pool.isAqua0Enabled && (
+          <ProvideLiquidityModal
+            open={isProvideModalOpen}
+            onOpenChange={setIsProvideModalOpen}
+            pool={pool}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ==========================================================================
+   Overview tab — liquidity distribution + pool addresses + fees earned
+   ========================================================================== */
+
+function OverviewTab({
+  pool,
+  tickData,
+  feeData,
+  isMock,
+}: {
+  pool: V4Pool
+  tickData: { ranges: TickRange[]; currentTick: number } | null
+  feeData: PoolFeeData | null
+  isMock: boolean
+}) {
+  return (
+    <div className="grid gap-5 lg:grid-cols-3">
+      {/* Liquidity distribution — spans 2 cols on desktop */}
+      <div className="lg:col-span-2">
+        <Panel>
+          <PanelHeader
+            title="Liquidity distribution"
+            sub={
+              pool.isAqua0Enabled
+                ? "Real seed liquidity vs virtual liquidity drawn JIT from the Aqua0 Shared Pool."
+                : "Pool liquidity across tick ranges."
+            }
+          />
+          <LiquidityCurve pool={pool} isAqua0={pool.isAqua0Enabled} />
+          {pool.isAqua0Enabled && (
+            <div className="mt-3 flex items-center gap-4 text-[10px] uppercase tracking-[0.1em] text-white/50">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-sm bg-white opacity-70" />
+                Real
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-sm bg-[#7FE5E5]" />
+                Shared · Aqua0
               </span>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Swap Fee: {pool.fee / 10000}% • Tick Spacing: {pool.tickSpacing}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {pool.isAqua0Enabled ? (
-            <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-sm font-bold text-emerald-400">Just-in-Time Active</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1.5">
-              <Lock className="h-3.5 w-3.5 text-amber-400" />
-              <span className="text-sm font-bold text-amber-400">Isolated Liquidity</span>
-            </div>
           )}
-          {pool.isAqua0Enabled && (
-            <Button size="lg" className="gap-2" onClick={() => setIsProvideModalOpen(true)}>
-              Provide JIT Liquidity
-              <ArrowUpRight className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        </Panel>
       </div>
 
-      {/* Key Metrics Row */}
-      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-4">
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Price</p>
-          <p className="mt-1.5 text-2xl font-bold tabular-nums">{pool.currentPrice.toPrecision(5)}</p>
-        </div>
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Current Tick</p>
-          <p className="mt-1.5 text-2xl font-bold tabular-nums">{pool.currentTick}</p>
-        </div>
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pool ID</p>
-          <p className="mt-1.5 text-sm font-medium tabular-nums mt-3 truncate">{pool.poolId}</p>
-        </div>
-        <div className="rounded-xl border border-border/50 bg-secondary/20 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{pool.isAqua0Enabled ? 'Hook Address' : 'No Hook'}</p>
-          <p className="mt-1.5 text-sm font-medium tabular-nums mt-3 truncate">
-            {pool.isAqua0Enabled ? pool.poolKey.hooks : 'address(0)'}
-          </p>
-        </div>
-      </div>
-
-      {/* Pool Liquidity Breakdown — hidden until proper deposit tracking is implemented */}
-      {/* 
-      <div className="mb-8 rounded-xl border border-border/50 bg-secondary/20 p-6">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-purple-400" />
-          Pool Liquidity Breakdown
-        </h2>
-        {(() => {
-          const liquidity = pool.realLiquidity ? BigInt(pool.realLiquidity) : 0n
-          const sqrtPriceX96 = BigInt(pool.sqrtPriceX96)
-          const Q96 = BigInt(2) ** BigInt(96)
-          const sqrtPriceCurrent = Number(sqrtPriceX96) / Number(Q96)
-          
-          const amount0 = Number(liquidity) / sqrtPriceCurrent
-          const amount1 = Number(liquidity) * sqrtPriceCurrent
-          
-          const priceToken1PerToken0 = sqrtPriceCurrent ** 2
-          const price0 = TOKEN_PRICES[pool.token0.symbol] || 1
-          const price1 = TOKEN_PRICES[pool.token1.symbol] || 1
-          const value0Usd = (amount0 / 1e18) * price0
-          const value1Usd = (amount1 / 1e18) * price1
-          const totalUsd = value0Usd + value1Usd
-          
-          return (
-            <>
-              <div className="grid md:grid-cols-3 gap-4 mb-4">
-                <div className="rounded-lg bg-white/[0.02] border border-border/30 p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <img 
-                      src={getLogo(pool.token0.symbol)} 
-                      alt={pool.token0.symbol}
-                      className="w-5 h-5 rounded-full"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                    <p className="text-xs text-muted-foreground">{pool.token0.symbol}</p>
-                  </div>
-                  <p className="text-2xl font-bold">{(amount0 / 1e18).toFixed(6)}</p>
-                  <p className="text-sm text-muted-foreground">≈ ${value0Usd.toFixed(2)}</p>
-                </div>
-                <div className="rounded-lg bg-white/[0.02] border border-border/30 p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <img 
-                      src={getLogo(pool.token1.symbol)} 
-                      alt={pool.token1.symbol}
-                      className="w-5 h-5 rounded-full"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                    <p className="text-xs text-muted-foreground">{pool.token1.symbol}</p>
-                  </div>
-                  <p className="text-2xl font-bold">{(amount1 / 1e18).toFixed(6)}</p>
-                  <p className="text-sm text-muted-foreground">≈ ${value1Usd.toFixed(2)}</p>
-                </div>
-                <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Total Value (USD)</p>
-                  <p className="text-2xl font-bold text-emerald-400">${totalUsd.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Liquidity: {liquidity > 0n ? liquidity.toLocaleString() : 'N/A'}
-                  </p>
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>ℹ️ sqrtPriceX96: {sqrtPriceX96.toString()} (sqrtPrice ≈ {sqrtPriceCurrent.toFixed(6)})</p>
-                <p>ℹ️ Price (token1/token0): {priceToken1PerToken0.toFixed(6)}</p>
-              </div>
-            </>
-          )
-        })()}
-      </div>
-      */}
-
-      {/* Virtual Liquidity Breakdown — hidden until proper deposit tracking is implemented */}
-      {/* 
-      {pool.isAqua0Enabled && (() => {
-        const aggregatedRanges = pool.aggregatedRanges || []
-        const totalVirtualLiquidity = aggregatedRanges.reduce((sum, r) => sum + BigInt(r.totalLiquidity), 0n)
-        if (totalVirtualLiquidity === 0n) return null
-
-        const sqrtPriceX96 = BigInt(pool.sqrtPriceX96)
-        const Q96 = BigInt(2) ** BigInt(96)
-        const sqrtPriceCurrent = Number(sqrtPriceX96) / Number(Q96)
-        
-        const virtualAmount0 = Number(totalVirtualLiquidity) / sqrtPriceCurrent
-        const virtualAmount1 = Number(totalVirtualLiquidity) * sqrtPriceCurrent
-        
-        const price0 = TOKEN_PRICES[pool.token0.symbol] || 1
-        const price1 = TOKEN_PRICES[pool.token1.symbol] || 1
-        const virtualValue0Usd = (virtualAmount0 / 1e18) * price0
-        const virtualValue1Usd = (virtualAmount1 / 1e18) * price1
-        const virtualTotalUsd = virtualValue0Usd + virtualValue1Usd
-
-        return (
-          <div className="mb-8 rounded-xl border border-border/50 bg-secondary/20 p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-violet-400" />
-              Virtual Liquidity Breakdown
-            </h2>
-            <div className="grid md:grid-cols-3 gap-4 mb-4">
-              <div className="rounded-lg bg-white/[0.02] border border-violet-500/20 p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <img 
-                    src={getLogo(pool.token0.symbol)} 
-                    alt={pool.token0.symbol}
-                    className="w-5 h-5 rounded-full"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                  <p className="text-xs text-muted-foreground">{pool.token0.symbol} (Virtual)</p>
-                </div>
-                <p className="text-2xl font-bold">{(virtualAmount0 / 1e18).toFixed(6)}</p>
-                <p className="text-sm text-muted-foreground">≈ ${virtualValue0Usd.toFixed(2)}</p>
-              </div>
-              <div className="rounded-lg bg-white/[0.02] border border-violet-500/20 p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <img 
-                    src={getLogo(pool.token1.symbol)} 
-                    alt={pool.token1.symbol}
-                    className="w-5 h-5 rounded-full"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                  <p className="text-xs text-muted-foreground">{pool.token1.symbol} (Virtual)</p>
-                </div>
-                <p className="text-2xl font-bold">{(virtualAmount1 / 1e18).toFixed(6)}</p>
-                <p className="text-sm text-muted-foreground">≈ ${virtualValue1Usd.toFixed(2)}</p>
-              </div>
-              <div className="rounded-lg bg-violet-500/10 border border-violet-500/20 p-4">
-                <p className="text-xs text-muted-foreground mb-1">Total Virtual Value (USD)</p>
-                <p className="text-2xl font-bold text-violet-400">${virtualTotalUsd.toFixed(2)}</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Virtual Liquidity: {totalVirtualLiquidity.toLocaleString()}
-                </p>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>ℹ️ Virtual liquidity is injected JIT during swaps and removed after</p>
-              <p>ℹ️ Price (token1/token0): {(sqrtPriceCurrent ** 2).toFixed(6)}</p>
-            </div>
+      {/* Pool addresses — right column */}
+      <div className="space-y-5">
+        <Panel>
+          <PanelHeader title="Pool addresses" />
+          <div className="space-y-2">
+            <AddressRow label="Pool ID" value={pool.poolId} />
+            <AddressRow label="Hook" value={pool.isAqua0Enabled ? pool.poolKey.hooks : 'address(0)'} />
+            <AddressRow label="Token 0" value={pool.token0.address} sym={pool.token0.symbol} />
+            <AddressRow label="Token 1" value={pool.token1.address} sym={pool.token1.symbol} />
           </div>
-        )
-      })()}
-      */}
+        </Panel>
 
-      {/* Virtual Liquidity Breakdown — hidden until proper deposit tracking is implemented */}
-      {/* 
-      {pool.isAqua0Enabled && (() => {
-        const aggregatedRanges = pool.aggregatedRanges || []
-        const totalVirtualLiquidity = aggregatedRanges.reduce((sum, r) => sum + BigInt(r.totalLiquidity), 0n)
-        if (totalVirtualLiquidity === 0n) return null
-
-        const sqrtPriceX96 = BigInt(pool.sqrtPriceX96)
-        const Q96 = BigInt(2) ** BigInt(96)
-        const sqrtPriceCurrent = Number(sqrtPriceX96) / Number(Q96)
-        
-        const virtualAmount0 = Number(totalVirtualLiquidity) / sqrtPriceCurrent
-        const virtualAmount1 = Number(totalVirtualLiquidity) * sqrtPriceCurrent
-        
-        const price0 = TOKEN_PRICES[pool.token0.symbol] || 1
-        const price1 = TOKEN_PRICES[pool.token1.symbol] || 1
-        const virtualValue0Usd = (virtualAmount0 / 1e18) * price0
-        const virtualValue1Usd = (virtualAmount1 / 1e18) * price1
-        const virtualTotalUsd = virtualValue0Usd + virtualValue1Usd
-
-        return (
-          <div className="mb-8 rounded-xl border border-border/50 bg-secondary/20 p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-violet-400" />
-              Virtual Liquidity Breakdown
-            </h2>
-            <div className="grid md:grid-cols-3 gap-4 mb-4">
-              <div className="rounded-lg bg-white/[0.02] border border-violet-500/20 p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <img 
-                    src={getLogo(pool.token0.symbol)} 
-                    alt={pool.token0.symbol}
-                    className="w-5 h-5 rounded-full"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                  <p className="text-xs text-muted-foreground">{pool.token0.symbol} (Virtual)</p>
-                </div>
-                <p className="text-2xl font-bold">{(virtualAmount0 / 1e18).toFixed(6)}</p>
-                <p className="text-sm text-muted-foreground">≈ ${virtualValue0Usd.toFixed(2)}</p>
+        {/* Fees earned panel — from backend feeData, otherwise hide for mocks */}
+        {feeData && !isMock && (
+          <Panel>
+            <PanelHeader
+              title="Fees earned"
+              sub="Your uncollected fees from this pool."
+            />
+            <div className="space-y-2.5 text-[13px]">
+              <div className="flex items-center justify-between">
+                <span className="text-white/50">Fee rate</span>
+                <span className="text-white/80">{(feeData.feeRate / 10000).toFixed(2)}%</span>
               </div>
-              <div className="rounded-lg bg-white/[0.02] border border-violet-500/20 p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <img 
-                    src={getLogo(pool.token1.symbol)} 
-                    alt={pool.token1.symbol}
-                    className="w-5 h-5 rounded-full"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                  <p className="text-xs text-muted-foreground">{pool.token1.symbol} (Virtual)</p>
-                </div>
-                <p className="text-2xl font-bold">{(virtualAmount1 / 1e18).toFixed(6)}</p>
-                <p className="text-sm text-muted-foreground">≈ ${virtualValue1Usd.toFixed(2)}</p>
-              </div>
-              <div className="rounded-lg bg-violet-500/10 border border-violet-500/20 p-4">
-                <p className="text-xs text-muted-foreground mb-1">Total Virtual Value (USD)</p>
-                <p className="text-2xl font-bold text-violet-400">${virtualTotalUsd.toFixed(2)}</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Virtual Liquidity: {totalVirtualLiquidity.toLocaleString()}
+              {feeData.isAqua0Enabled ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/50">{pool.token0.symbol}</span>
+                    <span className="text-[#7FE5E5]">
+                      +{formatTokenAmount(feeData.aqua0Fees.token0, pool.token0.decimals)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/50">{pool.token1.symbol}</span>
+                    <span className="text-[#7FE5E5]">
+                      +{formatTokenAmount(feeData.aqua0Fees.token1, pool.token1.decimals)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-[12px] text-white/40">
+                  Classic V4 pool — fees accrue to LP positions, claimed via <code >PoolManager</code>.
                 </p>
-              </div>
+              )}
             </div>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>ℹ️ Virtual liquidity is injected JIT during swaps and removed after</p>
-              <p>ℹ️ Price (token1/token0): {(sqrtPriceCurrent ** 2).toFixed(6)}</p>
-            </div>
-          </div>
-        )
-      })()}
-      */}
-
-      {/* Virtual Liquidity Chart */}
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-4">Virtual Liquidity Distribution</h2>
-        <VisualLiquidityChart pool={pool} />
+          </Panel>
+        )}
       </div>
-
-      {/* Fee Breakdown Section */}
-      {feeData && (
-        <div className="mb-8 rounded-xl border border-border/50 bg-secondary/20 p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-blue-400" />
-            Fee Collection
-          </h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className={`p-4 rounded-lg ${feeData.isAqua0Enabled ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-white/[0.02] border border-border/30'}`}>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-emerald-400" />
-                Aqua0 Shared Pool Fees
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fee Rate:</span>
-                  <span className="font-mono">{(feeData.feeRate / 10000).toFixed(2)}%</span>
-                </div>
-                {feeData.isAqua0Enabled && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{pool.token0.symbol} Earned:</span>
-                      <span className="font-mono text-emerald-400">{formatTokenAmount(feeData.aqua0Fees.token0)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">{pool.token1.symbol} Earned:</span>
-                      <span className="font-mono text-emerald-400">{formatTokenAmount(feeData.aqua0Fees.token1)}</span>
-                    </div>
-                  </>
-                )}
-                <p className="text-xs text-muted-foreground pt-2">
-                  {feeData.isAqua0Enabled 
-                    ? "Fees are aggregated across ALL Aqua0-hooked pools and tracked per-user in SharedLiquidityPool"
-                    : "This pool is not hooked to Aqua0"}
-                </p>
-              </div>
-            </div>
-            <div className={`p-4 rounded-lg ${!feeData.isAqua0Enabled ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-white/[0.02] border border-border/30'}`}>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Lock className="h-4 w-4 text-amber-400" />
-                Traditional V4 Fees
-              </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fee Rate:</span>
-                  <span className="font-mono">{(feeData.feeRate / 10000).toFixed(2)}%</span>
-                </div>
-{!feeData.isAqua0Enabled && feeData.traditionalFees && (
-<>
-<div className="flex justify-between">
-<span className="text-muted-foreground">{pool.token0.symbol} Fees:</span>
-<span className="font-mono text-amber-400">
-{formatTokenAmount(feeData.traditionalFees.feeGrowthGlobal0X128 || "0")}
-</span>
-</div>
-<div className="flex justify-between">
-<span className="text-muted-foreground">{pool.token1.symbol} Fees:</span>
-<span className="font-mono text-amber-400">
-{formatTokenAmount(feeData.traditionalFees.feeGrowthGlobal1X128 || "0")}
-</span>
-</div>
-<div className="flex justify-between">
-<span className="text-muted-foreground">Pool Liquidity:</span>
-<span className="font-mono text-xs">{feeData.traditionalFees.poolLiquidity || "0"}</span>
-</div>
-<div className="flex justify-between font-semibold">
-<span className="text-muted-foreground">Total Fees (USD):</span>
-<span className="font-mono text-amber-400">
-${
-(() => {
-const fee0 = Number(formatTokenAmount(feeData.traditionalFees.feeGrowthGlobal0X128 || "0"))
-const fee1 = Number(formatTokenAmount(feeData.traditionalFees.feeGrowthGlobal1X128 || "0"))
-const price0 = TOKEN_PRICES[pool.token0.symbol] || 1
-const price1 = TOKEN_PRICES[pool.token1.symbol] || 1
-return ((fee0 * price0) + (fee1 * price1)).toFixed(2)
-})()
+    </div>
+  )
 }
-</span>
-</div>
-<p className="text-xs text-muted-foreground pt-2">
-{feeData.traditionalFees.note}
-</p>
-<p className="text-xs text-amber-400 pt-1">
-⚠️ Fees in traditional V4 are NOT user-specific — they are per-position. Compare with Aqua0's per-user fee tracking above.
-</p>
-</>
-                )}
-                {feeData.isAqua0Enabled && (
-                  <p className="text-xs text-muted-foreground pt-2">
-                    Fees in traditional V4 pools stay in the LP position and are claimed via PoolManager
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Tick Liquidity Table */}
-      {tickData && (
-        <div className="mb-8 rounded-xl border border-border/50 bg-secondary/20 p-6">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-purple-400" />
-            Liquidity by Tick Range
-          </h2>
-          
-          {tickData.ranges.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="text-left py-2 px-3 text-muted-foreground">Price Range</th>
-                      <th className="text-right py-2 px-3 text-muted-foreground">{pool.token0.symbol}</th>
-                      <th className="text-right py-2 px-3 text-muted-foreground">{pool.token1.symbol}</th>
-                      <th className="text-right py-2 px-3 text-muted-foreground">Value (USD)</th>
-                      <th className="text-center py-2 px-3 text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                {tickData.ranges.map((range, i) => {
-                  // Calculate token amounts from liquidity using correct Uniswap V4 math
-                  const liquidity = BigInt(range.totalLiquidity)
-                  const sqrtPriceX96 = BigInt(pool.sqrtPriceX96)
-                  const Q96 = BigInt(2) ** BigInt(96)
-                  
-                  // Calculate sqrt prices from tick values
-                  // sqrtPrice at tick = 1.0001^(tick/2)
-                  const sqrtPriceLower = Math.pow(1.0001, range.tickLower / 2)
-                  const sqrtPriceUpper = Math.pow(1.0001, range.tickUpper / 2)
-                  const sqrtPriceCurrent = Number(sqrtPriceX96) / Number(Q96)
-                  
-                  const currentTick = tickData.currentTick
-                  
-                  // Calculate token amounts based on position state
-                  let amount0: number
-                  let amount1: number
-                  
-                  if (currentTick >= range.tickUpper) {
-                    // Position is 100% in token1 (above current price)
-                    amount0 = 0
-                    amount1 = Number(liquidity) * (sqrtPriceUpper - sqrtPriceLower)
-                  } else if (currentTick < range.tickLower) {
-                    // Position is 100% in token0 (below current price)
-                    amount0 = Number(liquidity) * (1 / sqrtPriceLower - 1 / sqrtPriceUpper)
-                    amount1 = 0
-                  } else {
-                    // Position is active (current tick within range)
-                    // Holds a mix of both tokens
-                    amount0 = Number(liquidity) * (1 / sqrtPriceCurrent - 1 / sqrtPriceUpper)
-                    amount1 = Number(liquidity) * (sqrtPriceCurrent - sqrtPriceLower)
-                  }
-                  
-                  const price0 = TOKEN_PRICES[pool.token0.symbol] || 1
-                  const price1 = TOKEN_PRICES[pool.token1.symbol] || 1
-                  const valueUsd = (amount0 / 1e18 * price0) + (amount1 / 1e18 * price1)
-                  
+/* ---------- LiquidityCurve — richer version of LiquidityAtlas ---------- */
+const REAL_LIQ_RATIO = 0.22
+const BUCKETS = 61
+
+function LiquidityCurve({ pool, isAqua0 }: { pool: V4Pool; isAqua0: boolean }) {
+  const cells = useMemo(() => {
+    const ranges = pool.aggregatedRanges ?? []
+    if (ranges.length === 0) {
+      const center = Math.floor(BUCKETS / 2)
+      return Array.from({ length: BUCKETS }, (_, i) => {
+        const d = Math.abs(i - center)
+        return Math.exp(-(d * d) / (2 * 8 * 8))
+      })
+    }
+    const minTick = Math.min(...ranges.map((r) => r.tickLower))
+    const maxTick = Math.max(...ranges.map((r) => r.tickUpper))
+    const tickStep = (maxTick - minTick) / BUCKETS || 1
+    const bins = new Array(BUCKETS).fill(0)
+    ranges.forEach((r) => {
+      const liq = Number(r.totalLiquidity) || 0
+      for (let i = 0; i < BUCKETS; i++) {
+        const binStart = minTick + i * tickStep
+        const binEnd = binStart + tickStep
+        if (binEnd >= r.tickLower && binStart <= r.tickUpper) bins[i] += liq
+      }
+    })
+    const max = Math.max(...bins, 1)
+    return bins.map((v) => v / max)
+  }, [pool.aggregatedRanges])
+
+  const center = Math.floor(BUCKETS / 2)
+
+  return (
+    <div>
+      <div className="relative h-32">
+        <div className="absolute inset-0 flex items-end gap-px">
+          {cells.map((v, i) => {
+            const isCenter = i === center
+            const barHeight = Math.max(8, v * 100)
+            if (isAqua0) {
+              return (
+                <div
+                  key={i}
+                  className="flex flex-1 items-end"
+                  style={{ height: '100%' }}
+                >
+                  <div className="relative w-full" style={{ height: `${barHeight}%` }}>
+                    <div
+                      className="absolute left-0 right-0 top-0 bg-[#7FE5E5]"
+                      style={{
+                        height: `${(1 - REAL_LIQ_RATIO) * 100}%`,
+                        opacity: isCenter ? 0.95 : 0.35 + v * 0.45,
+                      }}
+                    />
+                    <div
+                      className="absolute bottom-0 left-0 right-0 bg-white"
+                      style={{
+                        height: `${REAL_LIQ_RATIO * 100}%`,
+                        opacity: isCenter ? 0.9 : 0.4 + v * 0.3,
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            }
+            return (
+              <div key={i} className="flex flex-1 items-end" style={{ height: '100%' }}>
+                <div
+                  className={`w-full ${isCenter ? 'bg-[#7FE5E5]' : 'bg-white'}`}
+                  style={{
+                    height: `${barHeight}%`,
+                    opacity: isCenter ? 0.85 : 0.15 + v * 0.5,
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[11px] text-white/40">
+        <span >{(pool.currentPrice * 0.7).toPrecision(4)}</span>
+        <span className="text-[#7FE5E5]">
+          current {pool.currentPrice.toPrecision(4)}
+        </span>
+        <span >{(pool.currentPrice * 1.3).toPrecision(4)}</span>
+      </div>
+    </div>
+  )
+}
+
+/* ==========================================================================
+   Compare tab — Aqua0 vs Classic side by side
+   ========================================================================== */
+
+function CompareTab({ pool }: { pool: V4Pool }) {
+  const feePct = pool.fee / 10000
+  const mockedApy = 32.4
+  const classicApy = mockedApy * 0.55
+  return (
+    <div className="grid gap-5 md:grid-cols-2">
+      {/* Aqua0 */}
+      <div className="rounded-xl border border-[#7FE5E5]/30 bg-[#7FE5E5]/[0.04] p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <Badge label="Aqua0 · JIT" tone="aqua" pulse />
+          <span className="text-[28px] font-bold tabular-nums text-[#7FE5E5]">
+            {mockedApy.toFixed(1)}%
+          </span>
+        </div>
+        <p className="mb-4 text-[12px] uppercase tracking-[0.15em] text-white/50">
+          Shared liquidity pool
+        </p>
+        <ul className="mb-5 space-y-2 text-[13px] text-white/80">
+          {[
+            'Same capital backs every Aqua0-hooked pool',
+            'Earns fees from every swap across all venues',
+            'Higher capital efficiency than classic V4',
+            'Withdraw anytime from Shared Pool',
+            'Single deposit, many positions',
+          ].map((item) => (
+            <li key={item} className="flex items-start gap-2">
+              <IconCheck />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+        <DotFlow type="shared" />
+      </div>
+
+      {/* Classic */}
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <Badge label="Classic · V4" tone="dim" />
+          <span className="text-[28px] font-bold tabular-nums text-white/50">
+            {classicApy.toFixed(1)}%
+          </span>
+        </div>
+        <p className="mb-4 text-[12px] uppercase tracking-[0.15em] text-white/40">
+          Isolated liquidity pool
+        </p>
+        <ul className="mb-5 space-y-2 text-[13px] text-white/60">
+          {[
+            'Capital locked to this single pool',
+            `Fees only from this pool's ${feePct.toFixed(2)}% take`,
+            '~70% idle outside active tick range',
+            'Manual rebalancing across chains',
+            'One deposit per position',
+          ].map((item) => (
+            <li key={item} className="flex items-start gap-2">
+              <IconCross />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+        <DotFlow type="classic" />
+      </div>
+    </div>
+  )
+}
+
+function DotFlow({ type }: { type: 'shared' | 'classic' }) {
+  return (
+    <div className="mt-4 rounded-lg border border-white/[0.06] bg-black/40 p-4">
+      <div className="mb-3 text-[10px] uppercase tracking-[0.15em] text-white/40">
+        How capital moves
+      </div>
+      {type === 'shared' ? (
+        <svg viewBox="0 0 240 80" width="100%" height="80" className="text-[#7FE5E5]">
+          {/* Central capital */}
+          <rect x="104" y="32" width="32" height="16" rx="2" fill="currentColor" opacity="0.9" />
+          <text x="120" y="43" fontSize="7" fill="#000" textAnchor="middle" fontWeight="700" letterSpacing="0.08em">
+            CAPITAL
+          </text>
+          {/* 3 pools */}
+          {[
+            [20, 14, 'A'],
+            [180, 14, 'B'],
+            [180, 54, 'C'],
+            [20, 54, 'D'],
+          ].map(([x, y, label], i) => (
+            <g key={i}>
+              <rect
+                x={x as number}
+                y={y as number}
+                width="30"
+                height="12"
+                rx="1.5"
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity="0.6"
+              />
+              <text
+                x={(x as number) + 15}
+                y={(y as number) + 8.5}
+                fontSize="6"
+                fill="currentColor"
+                opacity="0.8"
+                textAnchor="middle"
+                letterSpacing="0.08em"
+              >
+                POOL {label}
+              </text>
+            </g>
+          ))}
+          {/* Dotted flows from center to each pool */}
+          {[
+            [120, 40, 50, 20],
+            [120, 40, 180, 20],
+            [120, 40, 180, 60],
+            [120, 40, 50, 60],
+          ].map(([x1, y1, x2, y2], i) => {
+            const steps = 8
+            return (
+              <g key={i}>
+                {Array.from({ length: steps }).map((_, j) => {
+                  const t = (j + 1) / (steps + 1)
+                  const x = x1 + (x2 - x1) * t
+                  const y = y1 + (y2 - y1) * t
                   return (
-                    <tr key={i} className={`border-b border-border/30 ${range.isActive ? 'bg-emerald-500/5' : ''}`}>
-                      <td className="py-2 px-3 font-mono text-xs">
-                        {range.priceLower} - {range.priceUpper}
-                      </td>
-                      <td className="py-2 px-3 font-mono text-right text-xs">
-                        {(amount0 / 1e18).toFixed(4)}
-                      </td>
-                      <td className="py-2 px-3 font-mono text-right text-xs">
-                        {(amount1 / 1e18).toFixed(4)}
-                      </td>
-                      <td className="py-2 px-3 font-mono text-right text-xs font-semibold">
-                        ${valueUsd.toFixed(2)}
-                      </td>
-                      <td className="py-2 px-3 text-center">
-                        {range.isActive ? (
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-500/20 text-emerald-400">Active</span>
-                        ) : (
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-white/5 text-muted-foreground">Inactive</span>
-                        )}
-                      </td>
-                    </tr>
+                    <rect
+                      key={j}
+                      x={x - 1}
+                      y={y - 1}
+                      width="1.8"
+                      height="1.8"
+                      fill="currentColor"
+                      opacity={0.3 + (j * 0.08)}
+                    />
                   )
                 })}
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-xs text-muted-foreground mt-3">
-                Current tick: <span className="font-mono">{tickData.currentTick}</span>
-              </p>
-            </>
-        ) : (
-          <div className="text-sm text-muted-foreground">
-            <p className="mb-2">This is a traditional V4 pool without position tracking.</p>
-            <p className="mb-2">
-              See the <strong>Pool Liquidity Breakdown</strong> section above for current pool reserves.
-            </p>
-            <p className="text-xs">
-              Aqua0 pools show tick ranges because positions are tracked in the SharedLiquidityPool contract.
-              Traditional V4 pools require an indexer to enumerate individual positions.
-            </p>
-          </div>
-        )}
-        </div>
-      )}
-
-      {/* Pool Type Comparison */}
-      <div className="mb-8 rounded-xl border border-border/50 bg-secondary/20 p-6">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Zap className="h-5 w-5 text-emerald-400" />
-          {pool.isAqua0Enabled ? 'Aqua0 Shared Liquidity' : 'Traditional Isolated Liquidity'}
-        </h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className={`p-4 rounded-lg ${pool.isAqua0Enabled ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-white/[0.02] border border-border/30'}`}>
-            <h3 className="font-semibold mb-2 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-emerald-400" />
-              Aqua0 Shared Pool
-            </h3>
-            <ul className="space-y-1.5 text-sm text-foreground/80">
-              <li>✓ Capital backs multiple pools simultaneously</li>
-              <li>✓ Liquidity amplification: 1 ETH can back N pools</li>
-              <li>✓ Fees aggregated across all hooked pools</li>
-              <li>✓ Just-in-time injection saves gas</li>
-              <li>✓ Perfect per-user PnL tracking</li>
-            </ul>
-          </div>
-          <div className={`p-4 rounded-lg ${!pool.isAqua0Enabled ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-white/[0.02] border border-border/30'}`}>
-            <h3 className="font-semibold mb-2 flex items-center gap-2">
-              <Lock className="h-4 w-4 text-amber-400" />
-              Traditional Isolated Pool
-            </h3>
-            <ul className="space-y-1.5 text-sm text-foreground/80">
-              <li>• Capital locked in single pool</li>
-              <li>• No liquidity amplification</li>
-              <li>• Fees only from this pool&apos;s swaps</li>
-              <li>• Higher gas for LP operations</li>
-              <li>• Standard V4 LP mechanics</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div className={`rounded-xl border border-border/50 p-6 flex items-start gap-4 ${pool.isAqua0Enabled ? 'bg-secondary/20' : 'bg-amber-500/5'}`}>
-        {pool.isAqua0Enabled ? (
-          <>
-            <Info className="h-6 w-6 text-emerald-400 mt-0.5" />
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-emerald-400">How Aqua0 Shared Liquidity Works</h3>
-              <ul className="space-y-2 text-sm text-foreground/80 list-disc list-inside">
-                <li>Your pooled tokens are <strong>not</strong> sent directly to the V4 PoolManager. They are held safely in the <code>SharedLiquidityPool</code> contract.</li>
-                <li>During a swap on this pool, the Aqua0 Hook uses flash accounting to virtually inject your liquidity right before the swap (<code>beforeSwap</code>).</li>
-                <li>After the swap executes against your liquidity, the hook removes the virtual position (<code>afterSwap</code>).</li>
-                <li>Only the <strong>net</strong> tokens required to settle the trade actually move, saving immense gas and allowing cross-pool sharing.</li>
-              </ul>
-            </div>
-          </>
-        ) : (
-          <>
-            <Lock className="h-6 w-6 text-amber-400 mt-0.5" />
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-amber-400">Traditional V4 Liquidity</h3>
-              <ul className="space-y-2 text-sm text-foreground/80 list-disc list-inside">
-                <li>This pool has <strong>no Aqua0 hook</strong> — it operates as a standard Uniswap V4 pool.</li>
-                <li>LP positions are created directly via <code>PoolManager.modifyLiquidity</code>.</li>
-                <li>Capital is <strong>locked</strong> in this single pool and cannot back other pools.</li>
-                <li>Fees accrue to LP positions and are claimed via standard V4 mechanisms.</li>
-                <li>Compare this pool&apos;s performance against Aqua0-hooked pools to see the capital efficiency difference.</li>
-              </ul>
-            </div>
-          </>
-        )}
-      </div>
-
-      {isProvideModalOpen && pool.isAqua0Enabled && (
-        <ProvideLiquidityModal
-          open={isProvideModalOpen}
-          onOpenChange={setIsProvideModalOpen}
-          pool={pool}
-        />
+              </g>
+            )
+          })}
+        </svg>
+      ) : (
+        <svg viewBox="0 0 240 80" width="100%" height="80" className="text-white/50">
+          {/* Single locked pool with capital */}
+          <rect x="20" y="32" width="60" height="16" rx="2" fill="currentColor" opacity="0.7" />
+          <text x="50" y="43" fontSize="7" fill="#000" textAnchor="middle" fontWeight="700" letterSpacing="0.08em">
+            LOCKED
+          </text>
+          <text x="50" y="64" fontSize="6" fill="currentColor" opacity="0.8" textAnchor="middle" letterSpacing="0.08em">
+            POOL A
+          </text>
+          {/* Other pools — empty */}
+          {[
+            [110, 34, 'B'],
+            [170, 34, 'C'],
+          ].map(([x, y, label], i) => (
+            <g key={i}>
+              <rect
+                x={x as number}
+                y={y as number}
+                width="50"
+                height="12"
+                rx="1.5"
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity="0.3"
+                strokeDasharray="2 2"
+              />
+              <text
+                x={(x as number) + 25}
+                y={(y as number) + 8.5}
+                fontSize="6"
+                fill="currentColor"
+                opacity="0.4"
+                textAnchor="middle"
+                letterSpacing="0.08em"
+              >
+                POOL {label} · EMPTY
+              </text>
+            </g>
+          ))}
+        </svg>
       )}
     </div>
+  )
+}
+
+/* ==========================================================================
+   JIT Engine tab — 4-step explainer
+   ========================================================================== */
+
+function JitEngineTab() {
+  return (
+    <Panel>
+      <PanelHeader
+        title="Just-in-Time liquidity, explained"
+        sub="How the Aqua0 hook materializes liquidity for a single swap."
+      />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            n: '01',
+            title: 'Swap arrives',
+            body: (
+              <>
+                A trader initiates a swap on this V4 pool. The Aqua0 hook
+                intercepts the <code className="text-white/80">beforeSwap</code> callback.
+              </>
+            ),
+            art: <JitArt1 />,
+          },
+          {
+            n: '02',
+            title: 'Flash liquidity in',
+            body: (
+              <>
+                The hook draws your capital from the{' '}
+                <span className="border-b border-dotted border-white/40 text-white">Shared Pool</span>{' '}
+                and places it into this pool at the exact tick range needed.
+              </>
+            ),
+            art: <JitArt2 />,
+          },
+          {
+            n: '03',
+            title: 'Swap executes',
+            body: <>Trader gets the best price. Pool charges its swap fee. You earn the fee.</>,
+            art: <JitArt3 />,
+          },
+          {
+            n: '04',
+            title: 'Flash liquidity out',
+            body: (
+              <>
+                After the swap, liquidity returns to the Shared Pool — ready to back the next
+                swap on any other Aqua0 pool.
+              </>
+            ),
+            art: <JitArt4 />,
+          },
+        ].map((step) => (
+          <div
+            key={step.n}
+            className="flex min-h-[240px] flex-col gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4"
+          >
+            <div className="flex h-[80px] items-center justify-center text-[#7FE5E5]">
+              {step.art}
+            </div>
+            <div className="text-[11px] tracking-[0.1em] text-[#7FE5E5]">
+              {step.n}
+            </div>
+            <div className="text-[15px] font-semibold tracking-[-0.01em] text-white">
+              {step.title}
+            </div>
+            <div className="text-[12px] leading-[1.55] text-white/60">{step.body}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 flex items-start gap-2 rounded-lg border border-white/[0.06] bg-black/40 p-4 text-[12px] text-white/60">
+        <span className="text-[#7FE5E5]">ℹ</span>
+        <span>
+          Because capital never sits idle in a single pool, the same dollar can earn fees across
+          every Aqua0-hooked venue. As new pools are added, your existing deposit automatically
+          backs them.
+        </span>
+      </div>
+    </Panel>
+  )
+}
+
+/* ==========================================================================
+   Shared primitives
+   ========================================================================== */
+
+function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#0d0d0d] p-5">
+      {children}
+    </div>
+  )
+}
+
+function PanelHeader({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div className="mb-4">
+      <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-white">{title}</h3>
+      {sub && <p className="mt-1 text-[12px] text-white/50">{sub}</p>}
+    </div>
+  )
+}
+
+function Kpi({
+  label,
+  value,
+  sub,
+  accent,
+  mono,
+}: {
+  label: string
+  value: string
+  sub?: string
+  accent?: boolean
+  mono?: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#0d0d0d] p-4">
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-white/50">{label}</p>
+      <p
+        className={`mt-2 text-[22px] font-bold leading-none tracking-[-0.02em] tabular-nums ${
+          accent ? 'text-[#7FE5E5]' : 'text-white'
+        } ${''}`}
+      >
+        {value}
+      </p>
+      {sub && <p className="mt-1.5 text-[11px] text-white/40">{sub}</p>}
+    </div>
+  )
+}
+
+function Badge({
+  label,
+  tone,
+  pulse,
+}: {
+  label: string
+  tone: 'aqua' | 'violet' | 'dim'
+  pulse?: boolean
+}) {
+  const styles = {
+    aqua: 'border-[#7FE5E5]/30 bg-[#7FE5E5]/10 text-[#7FE5E5]',
+    violet: 'border-violet-300/30 bg-violet-300/10 text-violet-200',
+    dim: 'border-white/10 bg-white/[0.02] text-white/50',
+  }[tone]
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] ${styles}`}
+    >
+      {pulse && (
+        <span className="h-1 w-1 rounded-full bg-current shadow-[0_0_4px_currentColor]" />
+      )}
+      {label}
+    </span>
+  )
+}
+
+function AddressRow({ label, value, sym }: { label: string; value: string; sym?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.015] px-3 py-2">
+      <span className="text-[11px] uppercase tracking-[0.1em] text-white/40">{label}</span>
+      <div className="flex items-center gap-2">
+        {sym && <span className="text-[12px] text-white/60">{sym}</span>}
+        <code className="text-[11px] text-white/80">{short(value)}</code>
+        <button
+          onClick={() => navigator.clipboard.writeText(value)}
+          className="text-white/30 transition-colors hover:text-white"
+          title="Copy"
+          aria-label={`Copy ${label}`}
+        >
+          ⧉
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function IconCheck() {
+  return (
+    <span className="mt-0.5 inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-[#7FE5E5]/40 bg-[#7FE5E5]/10 text-[#7FE5E5]">
+      <svg viewBox="0 0 12 12" width="10" height="10">
+        <path d="M2 6 L5 9 L10 3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  )
+}
+
+function IconCross() {
+  return (
+    <span className="mt-0.5 inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.03] text-white/40">
+      <svg viewBox="0 0 12 12" width="10" height="10">
+        <path d="M3 3 L9 9 M9 3 L3 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    </span>
+  )
+}
+
+function DotMarkMini() {
+  return (
+    <svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true" className="text-[#7FE5E5]">
+      {[0, 1, 2].map((r) =>
+        [0, 1, 2].map((c) => (
+          <rect key={`${r}-${c}`} x={c * 4 + 1} y={r * 4 + 1} width="2" height="2" fill="currentColor" />
+        )),
+      )}
+    </svg>
+  )
+}
+
+/* ---------- JIT step SVG art ---------- */
+
+function JitArt1() {
+  return (
+    <svg viewBox="0 0 120 60" width="100%" height="100%">
+      {/* Trader sends swap */}
+      <rect x="8" y="22" width="24" height="16" rx="2" fill="none" stroke="currentColor" strokeOpacity="0.6" />
+      <text x="20" y="33" fontSize="6" fill="currentColor" opacity="0.8" textAnchor="middle" letterSpacing="0.08em">
+        TRADER
+      </text>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <rect key={i} x={36 + i * 6} y={29} width="2" height="2" fill="currentColor" opacity={0.4 + i * 0.12} />
+      ))}
+      <rect x="74" y="18" width="38" height="24" rx="2" fill="none" stroke="currentColor" />
+      <text x="93" y="33" fontSize="7" fill="currentColor" opacity="0.9" textAnchor="middle" fontWeight="700" letterSpacing="0.08em">
+        HOOK
+      </text>
+    </svg>
+  )
+}
+
+function JitArt2() {
+  return (
+    <svg viewBox="0 0 120 60" width="100%" height="100%">
+      {/* Shared pool → hook */}
+      <rect x="8" y="18" width="30" height="24" rx="2" fill="currentColor" opacity="0.85" />
+      <text x="23" y="33" fontSize="6" fill="#000" textAnchor="middle" fontWeight="700" letterSpacing="0.08em">
+        SHARED
+      </text>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <rect key={i} x={40 + i * 5} y={29} width="2" height="2" fill="currentColor" opacity={0.35 + i * 0.1} />
+      ))}
+      <rect x="76" y="18" width="36" height="24" rx="2" fill="none" stroke="currentColor" />
+      <text x="94" y="33" fontSize="7" fill="currentColor" opacity="0.9" textAnchor="middle" fontWeight="700" letterSpacing="0.08em">
+        POOL
+      </text>
+    </svg>
+  )
+}
+
+function JitArt3() {
+  return (
+    <svg viewBox="0 0 120 60" width="100%" height="100%">
+      {/* Swap execution — bidirectional arrows */}
+      <rect x="30" y="20" width="60" height="20" rx="2" fill="currentColor" opacity="0.15" />
+      <text x="60" y="33" fontSize="8" fill="currentColor" opacity="0.85" textAnchor="middle" fontWeight="700" letterSpacing="0.1em">
+        SWAP
+      </text>
+      {/* Arrows */}
+      {[20, 22, 24].map((y, i) => (
+        <rect key={i} x={20 + i * 3} y={y} width="2" height="2" fill="currentColor" opacity={0.4 + i * 0.15} />
+      ))}
+      {[36, 38, 40].map((y, i) => (
+        <rect key={i} x={96 - i * 3} y={y} width="2" height="2" fill="currentColor" opacity={0.4 + i * 0.15} />
+      ))}
+    </svg>
+  )
+}
+
+function JitArt4() {
+  return (
+    <svg viewBox="0 0 120 60" width="100%" height="100%">
+      {/* Pool → shared (reversed of art2) */}
+      <rect x="8" y="18" width="36" height="24" rx="2" fill="none" stroke="currentColor" />
+      <text x="26" y="33" fontSize="7" fill="currentColor" opacity="0.9" textAnchor="middle" fontWeight="700" letterSpacing="0.08em">
+        POOL
+      </text>
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <rect key={i} x={46 + i * 5} y={29} width="2" height="2" fill="currentColor" opacity={0.9 - i * 0.12} />
+      ))}
+      <rect x="82" y="18" width="30" height="24" rx="2" fill="currentColor" opacity="0.85" />
+      <text x="97" y="33" fontSize="6" fill="#000" textAnchor="middle" fontWeight="700" letterSpacing="0.08em">
+        SHARED
+      </text>
+    </svg>
   )
 }

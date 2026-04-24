@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,9 +18,10 @@ import { ArrowDownToLine, ArrowUpFromLine, RefreshCw } from 'lucide-react'
 
 interface RealLiquidityManagerProps {
     pools: V4Pool[]
+    onDepositSuccess?: () => void
 }
 
-export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
+export function RealLiquidityManager({ pools, onDepositSuccess }: RealLiquidityManagerProps) {
     const { isConnected, address, chainId } = useWallet()
     const { toast } = useToast()
     const { sendTransactionAsync } = useSendTransaction()
@@ -88,6 +88,7 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
                 const { calldata: depCall } = await api.post<{ calldata: any }>('v4/lp/prepare-deposit', { token: activeToken.address, amount: amountRaw, to: address }, { chainId: String(backendChainId) })
                 await sendAndWait(depCall, `Deposit ${activeToken.symbol}`)
                 toast({ title: "✅ Deposit Successful!" })
+                onDepositSuccess?.()
             } else {
                 const { calldata: withCall } = await api.post<{ calldata: any }>('v4/lp/prepare-withdraw', { token: activeToken.address, amount: amountRaw, from: address, to: address }, { chainId: String(backendChainId) })
                 await sendAndWait(withCall, `Withdraw ${activeToken.symbol}`)
@@ -108,90 +109,115 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
     if (!isConnected || uniqueTokens.length === 0) return null
 
     return (
-        <Card className="mb-8">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle>Real Liquidity (Shared Pool)</CardTitle>
-                <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={isLoading} className="h-8 w-8">
-                    <RefreshCw className={`h-4 w-4 text-muted-foreground ${isLoading ? 'animate-spin' : ''}`} />
-                </Button>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4 pt-4">
-                    {uniqueTokens.map(token => {
-                        const bal = balances?.find(b => b.token.toLowerCase() === token.address.toLowerCase())
-                        const walletFmt = bal ? Number(formatUnits(BigInt(bal.walletBalance), token.decimals)).toFixed(4) : "0.0000"
-                        const freeFmt = bal ? Number(formatUnits(BigInt(bal.freeBalance), token.decimals)).toFixed(4) : "0.0000"
+        <div className="mb-8 rounded-xl border border-white/10 bg-[#0d0d0d] p-6">
+            {/* Alpha-styled header (replaces Card/CardHeader) */}
+            <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                    <h3 className="text-[18px] font-semibold tracking-[-0.01em] text-white">
+                        Shared Pool balance
+                    </h3>
+                    <p className="mt-1 text-[13px] text-white/50">
+                        This is your deposit. These tokens power every route below.
+                    </p>
+                </div>
+                <button
+                    onClick={() => refetch()}
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[12px] text-white/60 transition-colors hover:border-white/30 hover:text-white disabled:opacity-50"
+                    aria-label="Refresh balances"
+                >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                </button>
+            </div>
 
-                        return (
-                            <div key={token.address} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/50 bg-secondary/10">
-                                <div className="flex items-center gap-3">
-                                    <TokenIcon token={token as any} size="md" />
-                                    <div>
-                                        <h4 className="font-semibold">{token.symbol}</h4>
-                                        <div className="flex gap-4 mt-1 text-sm font-mono flex-wrap">
-                                            <span className="text-muted-foreground">Wallet: {walletFmt}</span>
-                                            <span className="text-emerald-500 font-medium">Shared: {freeFmt}</span>
-                                            {bal && BigInt(bal.earnedFees || "0") > 0n && (
-                                                <span className="text-amber-500 font-medium">Fees: {Number(formatUnits(BigInt(bal.earnedFees), token.decimals)).toFixed(4)}</span>
-                                            )}
-                                        </div>
+            {/* Token rows (alpha-styled) */}
+            <div className="space-y-2.5">
+                {uniqueTokens.map(token => {
+                    const bal = balances?.find(b => b.token.toLowerCase() === token.address.toLowerCase())
+                    const walletFmt = bal ? Number(formatUnits(BigInt(bal.walletBalance), token.decimals)).toFixed(4) : "0.0000"
+                    const freeFmt = bal ? Number(formatUnits(BigInt(bal.freeBalance), token.decimals)).toFixed(4) : "0.0000"
+                    const hasFees = bal && BigInt(bal.earnedFees || "0") > 0n
+                    const feesFmt = hasFees ? Number(formatUnits(BigInt(bal!.earnedFees), token.decimals)).toFixed(4) : null
+
+                    return (
+                        <div
+                            key={token.address}
+                            className="flex flex-col items-start justify-between gap-4 rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 sm:flex-row sm:items-center"
+                        >
+                            <div className="flex items-center gap-3">
+                                <TokenIcon token={token as any} size="lg" />
+                                <div>
+                                    <div className="text-[15px] font-semibold text-white">{token.symbol}</div>
+                                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+                                        <span className="text-white/50">
+                                            Wallet <span className="text-white/80">{walletFmt}</span>
+                                        </span>
+                                        <span className="text-white/20">·</span>
+                                        <span className="text-white/50">
+                                            Shared <span className="text-[#7FE5E5]">{freeFmt}</span>
+                                        </span>
+                                        {feesFmt && (
+                                            <>
+                                                <span className="text-white/20">·</span>
+                                                <span className="text-white/50">
+                                                    Fees <span className="text-amber-300">{feesFmt}</span>
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="flex gap-2 justify-end w-full sm:w-auto flex-wrap mt-3 sm:mt-0">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="flex-1 sm:flex-none border-emerald-500/20 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:text-emerald-400"
-                                        onClick={() => setActionDialog({ isOpen: true, type: 'deposit', tokenAddress: token.address })}
-                                    >
-                                        <ArrowDownToLine className="mr-1 h-3.5 w-3.5" /> Deposit
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="flex-1 sm:flex-none"
-                                        onClick={() => setActionDialog({ isOpen: true, type: 'withdraw', tokenAddress: token.address })}
-                                    >
-                                        <ArrowUpFromLine className="mr-1 h-3.5 w-3.5" /> Withdraw
-                                    </Button>
-                                    {bal && BigInt(bal.earnedFees || "0") > 0n && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1 sm:flex-none w-full sm:w-auto mt-2 sm:mt-0 border-amber-500/30 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 hover:text-amber-400"
-                                            onClick={async () => {
-                                                setIsSubmitting(true)
-                                                try {
-                                                    const backendChainId = BACKEND_CHAIN_IDS[chainId!] ?? 696969
-                                                    const { calldata } = await api.post<{ calldata: any }>('v4/lp/prepare-claim-fees', { token: token.address, from: address, to: address }, { chainId: String(backendChainId) })
-                                                    toast({ title: `Claiming ${token.symbol} Fees...`, description: 'Waiting for wallet confirmation' })
-                                                    const hash = await sendTransactionAsync({
-                                                        to: calldata.to,
-                                                        data: calldata.data,
-                                                        value: calldata.value ? BigInt(calldata.value) : undefined
-                                                    })
-                                                    toast({ title: "Fees Claimed", description: 'Waiting for chain confirmation…' })
-                                                    await publicClient!.waitForTransactionReceipt({ hash })
-                                                    toast({ title: "✅ Fees Successfully Claimed!" })
-                                                    refetch()
-                                                } catch (error: any) {
-                                                    console.error(error)
-                                                    toast({ title: "Claim Failed", description: error.message || "Unknown error", variant: "destructive" })
-                                                } finally {
-                                                    setIsSubmitting(false)
-                                                }
-                                            }}
-                                            disabled={isSubmitting}
-                                        >
-                                            🏆 Claim Fees
-                                        </Button>
-                                    )}
-                                </div>
                             </div>
-                        )
-                    })}
-                </div>
-            </CardContent>
+                            <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
+                                <button
+                                    onClick={() => setActionDialog({ isOpen: true, type: 'deposit', tokenAddress: token.address })}
+                                    className="inline-flex items-center gap-1.5 rounded-md bg-white px-3.5 py-2 text-[12px] font-semibold text-black transition-colors hover:bg-white/90"
+                                >
+                                    <ArrowDownToLine className="h-3.5 w-3.5" />
+                                    Deposit
+                                </button>
+                                <button
+                                    onClick={() => setActionDialog({ isOpen: true, type: 'withdraw', tokenAddress: token.address })}
+                                    className="inline-flex items-center gap-1.5 rounded-md border border-white/15 px-3.5 py-2 text-[12px] font-semibold text-white transition-colors hover:border-white/40 hover:bg-white/5"
+                                >
+                                    <ArrowUpFromLine className="h-3.5 w-3.5" />
+                                    Withdraw
+                                </button>
+                                {hasFees && (
+                                    <button
+                                        disabled={isSubmitting}
+                                        onClick={async () => {
+                                            setIsSubmitting(true)
+                                            try {
+                                                const backendChainId = BACKEND_CHAIN_IDS[chainId!] ?? 696969
+                                                const { calldata } = await api.post<{ calldata: any }>('v4/lp/prepare-claim-fees', { token: token.address, from: address, to: address }, { chainId: String(backendChainId) })
+                                                toast({ title: `Claiming ${token.symbol} Fees...`, description: 'Waiting for wallet confirmation' })
+                                                const hash = await sendTransactionAsync({
+                                                    to: calldata.to,
+                                                    data: calldata.data,
+                                                    value: calldata.value ? BigInt(calldata.value) : undefined
+                                                })
+                                                toast({ title: "Fees Claimed", description: 'Waiting for chain confirmation…' })
+                                                await publicClient!.waitForTransactionReceipt({ hash })
+                                                toast({ title: "✅ Fees Successfully Claimed!" })
+                                                refetch()
+                                            } catch (error: any) {
+                                                console.error(error)
+                                                toast({ title: "Claim Failed", description: error.message || "Unknown error", variant: "destructive" })
+                                            } finally {
+                                                setIsSubmitting(false)
+                                            }
+                                        }}
+                                        className="inline-flex items-center gap-1.5 rounded-md border border-amber-300/30 bg-amber-300/10 px-3.5 py-2 text-[12px] font-semibold text-amber-300 transition-colors hover:bg-amber-300/20 disabled:opacity-50"
+                                    >
+                                        Claim fees
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
 
             <Dialog open={actionDialog?.isOpen} onOpenChange={(open) => !open && setActionDialog(null)}>
                 <DialogContent className="sm:max-w-[400px]">
@@ -201,7 +227,7 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
 
                     {activeToken && (
                         <div className="space-y-4 py-4">
-                            <div className="flex justify-between items-center text-sm font-mono">
+                            <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Available to {actionDialog?.type}:</span>
                                 <span>
                                     {Number(formatUnits(BigInt(actionDialog?.type === 'deposit' ? (activeBalance?.walletBalance || "0") : (activeBalance?.freeBalance || "0")), activeToken.decimals)).toFixed(4)} {activeToken.symbol}
@@ -214,7 +240,7 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
                                     placeholder="0.00"
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
-                                    className="pr-16 text-lg font-mono"
+                                    className="pr-16 text-lg"
                                     disabled={isSubmitting}
                                 />
                                 <Button
@@ -236,6 +262,6 @@ export function RealLiquidityManager({ pools }: RealLiquidityManagerProps) {
                     )}
                 </DialogContent>
             </Dialog>
-        </Card>
+        </div>
     )
 }

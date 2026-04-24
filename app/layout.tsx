@@ -29,12 +29,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.variable} font-sans antialiased`}>
-        <ClientProviders>
-          <div className="flex min-h-screen flex-col">
-            <main className="flex-1">{children}</main>
-          </div>
-          <Toaster />
-        </ClientProviders>
+        <ClientProviders>{children}</ClientProviders>
+        <Toaster />
         <Analytics />
       </body>
     </html>
